@@ -1,0 +1,10 @@
+echo "make ARCH=arm CROSS_COMPILE=arm-none-linux-gnueabi-"
+make ARCH=arm CROSS_COMPILE=arm-none-linux-gnueabi-
+
+echo
+echo "------------------------------------------------------"
+echo "Insert SD card, ensure it's mounted & press [Enter]..."
+read
+cp -f rwmem.ko /media/BB_RFS/ ; sync ; umount /media/BB*
+echo "Done."
+
