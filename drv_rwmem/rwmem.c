@@ -1,6 +1,6 @@
 /*
  * rwmem.c
- * rdm / wrm kernel driver.
+ * Read/Write memory kernel driver.
  *
  * License: GPL v2.
  * Author: Kaiwan NB.
@@ -31,10 +31,6 @@
  * ...
  * These are physical addresses...
  */
-/* Won't hard-code, let user pass these as params... 
-#define IOMEM_START 	0x48300000
-#define IOMEM_SIZE 		(256*1024)
-*/
 
 dev_t rw_dev_number;
 struct rw_dev {
@@ -52,7 +48,8 @@ module_param(iobase_len, uint, 0);
 MODULE_PARM_DESC(iobase_len, "Length (in bytes) of IO base memory (typically h/w registers mapped here by the processor)");
 static int force_rel=0;
 module_param(force_rel, uint, 0);
-MODULE_PARM_DESC(force_rel, "Set to 1 to Force releasing the IO base memory region, even if (esp if) already mapped. Could be dangerous!");
+MODULE_PARM_DESC(force_rel, "Set to 1 to Force releasing the IO base memory region, even if (esp if) already mapped.\n\
+WARNING! Could be dangerous!");
 static char *reg_name;
 module_param(reg_name, charp, 0);
 MODULE_PARM_DESC(reg_name, "Set to a string describing the IO base memory region being mapped by this driver.");
@@ -69,11 +66,12 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd, u
 	int i=0, err=0, retval=0;
 	volatile PST_RDM pst_rdm=NULL;
 	volatile PST_WRM pst_wrm=NULL;
-	unsigned char *kbuf = NULL, *tmpbuf=NULL;
+	unsigned char *kbuf=NULL, *tmpbuf=NULL;
 
 	//MSG ("In ioctl method, cmd=%d type=%d\n", _IOC_NR(cmd), _IOC_TYPE(cmd));
 
 	/* Check arguments */
+	// TODO: issue on 64-bit??
 	if (_IOC_TYPE(cmd) != IOCTL_RWMEMDRV_MAGIC) {
 		printk ("%s: ioctl fail 1\n", DRVNAME);
 		return -ENOTTY;
@@ -92,7 +90,7 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd, u
 		return -EFAULT;
 
 	switch (cmd) {
-		case IOCTL_RWMEMDRV_IOCGMEM: /* 'rdm' */
+		case IOCTL_RWMEMDRV_IOCGMEM: /* 'rdmem' */
 			if (!(pst_rdm = kmalloc (sizeof (ST_RDM), GFP_KERNEL))) {
 				printk (KERN_ALERT "%s: out of memory!\n", DRVNAME);
 				return -ENOMEM;
@@ -125,14 +123,13 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd, u
 			}
 			memset (tmpbuf, POISONVAL, sizeof (tmpbuf));
 
-#if 0  //------------- ioread32_rep does NOT seem to work! ioread32 does...(on ARM BB)
+#if 0  //------------- ioread32_rep does NOT seem to work! ioread32 does...(on ARM BB). WHY ???
 			if (USE_IOBASE == pst_rdm->flag)
 				ioread32_rep (tmpbuf, (void *)(iobase+pst_rdm->addr), pst_rdm->len);
 			else
 				ioread32_rep (kbuf, (void *)pst_rdm->addr, pst_rdm->len/sizeof(void *));
 			print_hex_dump_bytes ("", DUMP_PREFIX_OFFSET, tmpbuf, pst_rdm->len);
 #endif
-#if 1
 			if (USE_IOBASE == pst_rdm->flag)
 				memcpy_fromio (tmpbuf, (iobase+pst_rdm->addr), pst_rdm->len);
 			else
@@ -147,7 +144,6 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd, u
 				kbuf[i+3] = tmpbuf[i];
 			}
 			print_hex_dump_bytes ("", DUMP_PREFIX_OFFSET, kbuf, pst_rdm->len);
-#endif
 
 			mb();
 			if (copy_to_user (pst_rdm->buf, kbuf, pst_rdm->len)) {
@@ -162,11 +158,10 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd, u
 			kfree (pst_rdm);
 			break;
 
-		case IOCTL_RWMEMDRV_IOCSMEM: /* 'wrm' */
+		case IOCTL_RWMEMDRV_IOCSMEM: /* 'wrmem' */
 			if (!capable (CAP_SYS_ADMIN))
 				return -EPERM;
 
-			//pst_wrm = (PST_WRM)arg; // Wrong!
 			if (!(pst_wrm = kmalloc (sizeof (ST_WRM), GFP_KERNEL))) {
 				printk (KERN_ALERT "%s: out of memory!\n", DRVNAME);
 				return -ENOMEM;
@@ -179,12 +174,10 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd, u
 			MSG ("addr/offset: 0x%x val=0x%x\n", 
 				(unsigned int)pst_wrm->addr, (unsigned int)pst_wrm->val);
 
-			//*(volatile unsigned int *)pst_wrm->addr = pst_wrm->val;
 			if (USE_IOBASE == pst_wrm->flag)
 				iowrite32 ((u32)pst_wrm->val, pst_wrm->addr+iobase);
 			else
-				iowrite32 ((u32)pst_wrm->val, pst_wrm->addr);
-			//writel ((u32)pst_wrm->val, pst_wrm->addr);
+				iowrite32 ((u32)pst_wrm->val, (void __iomem *)pst_wrm->addr);
 			wmb();
 			kfree (pst_wrm);
 			break;
@@ -204,7 +197,6 @@ static struct file_operations rwmem_fops = {
 #else
 	.ioctl  = 	rwmem_ioctl,
 #endif
-	//.compat_ioctl  = 	rwmem_compat_ioctl,  // newer (2.6.36 ?)
 };
 
 static int rwmem_open(struct inode * inode, struct file * filp)
@@ -348,7 +340,7 @@ static void __exit rwmem_cleanup_module(void)
 		release_mem_region (iobase_start, iobase_len);
 	}
 
-/* Char driver unregister */
+	/* Char driver unregister */
 	for (i=0; i<RW_COUNT; i++) {
 		cdev_del(&chardrv_devp[i].cdev);
 		device_destroy(chardrv_class, MKDEV(MAJOR(chardrv_dev_number), MINOR(chardrv_dev_number)+i));

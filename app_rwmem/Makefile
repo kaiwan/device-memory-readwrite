@@ -1,20 +1,19 @@
-ALL := rdm wrm xrdm xwrm
+ALL := rdmem wrmem xrdmem xwrmem
 GCC := gcc
 all: ${ALL}
 
-# Cross toolchain compile for the utils on BeagleBoard
+# Cross toolchain compile for the utils on BeagleBoard (or whatever)
 # Update XTOOL var below to your toolchain prefix
-#XTOOL := /media/Data_150GB/CodeSourcery_toolchain/bin/arm-none-linux-gnueabi-
 XTOOL := arm-none-linux-gnueabi-
 
-rdm: rdm.c ../common.h
-	${GCC} -Wall rdm.c -o rdm
-wrm: wrm.c ../common.h
-	${GCC} -Wall wrm.c -o wrm
-xrdm: rdm.c ../common.h
-	${XTOOL}gcc -Wall rdm.c -o xrdm
-xwrm: wrm.c ../common.h
-	${XTOOL}gcc -Wall wrm.c -o xwrm
+rdmem: rdmem.c ../common.h
+	${GCC} -Wall rdmem.c -o rdmem
+wrmem: wrmem.c ../common.h
+	${GCC} -Wall wrmem.c -o wrmem
+xrdmem: rdmem.c ../common.h
+	${XTOOL}gcc -Wall rdmem.c -o xrdmem
+xwrmem: wrmem.c ../common.h
+	${XTOOL}gcc -Wall wrmem.c -o xwrmem
 
 clean:
 	rm -f *.o ${ALL}

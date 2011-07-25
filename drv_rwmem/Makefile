@@ -26,9 +26,9 @@ clean:
 	find . -name \*.*~ -exec rm -rf '{}' ';'
 	find . -name \*.*.bak -exec rm -rf '{}' ';'
 	rm -f *.ko *.o *.mod.* .*.cmd
-	rm -fr .tmp_versions
 	rm -rf Module.symvers
 	rm -rf modules.order
+	rm -rf .tmp_versions
 
 else
 

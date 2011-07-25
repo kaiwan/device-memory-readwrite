@@ -8,8 +8,8 @@
 
 #define APPNAME		"rdm_wrm_app"
 
-#define DEBUG_PRINT
-//#undef DEBUG_PRINT
+//#define DEBUG_PRINT
+#undef DEBUG_PRINT
 
 #ifdef __KERNEL__
  #ifdef DEBUG_PRINT
@@ -33,8 +33,6 @@
 
 #define DEVICE_FILE		"/dev/rwmem.0"
 #define POISONVAL		0xea		// "poison value" to init alloced mem to
-//#define START_ADDR_MIN	0xAF000000
-//#define START_ADDR_MAX	0xBFFFFFFC
 #define MAX_LEN			128*1024	// 128Kb (arbit, tho it's max kmalloc len)..
 
 #define RW_MINOR_START     0
@@ -42,7 +40,7 @@
 #define RW_NAME           DEVICE_FILE
 
 //----------------ioctl stuff--------------
-#define IOCTL_RWMEMDRV_MAGIC		0xd0
+#define IOCTL_RWMEMDRV_MAGIC		0xbb
 #define IOCTL_RWMEMDRV_IOCGMEM		_IOW(IOCTL_RWMEMDRV_MAGIC, 1, int)
 #define IOCTL_RWMEMDRV_IOCSMEM		_IOR(IOCTL_RWMEMDRV_MAGIC, 2, int)
 #define	IOCTL_RWMEMDRV_MAXIOCTL		2
@@ -67,8 +65,11 @@ typedef struct _ST_WRM {
 
 /*--------------- Sourced from:
 http://www.alexonlinux.com/hex-dump-functions
-All rights rest with original author(s).----------------------*/
-void hex_dump(unsigned char *data, int size, char *caption)
+All rights rest with original author(s).----------------------
+
+Added a 'verbose' parameter..(kaiwan).
+*/
+void hex_dump(unsigned char *data, int size, char *caption, int verbose)
 {
 	int i; // index in data...
 	int j; // index in line...
@@ -78,7 +79,8 @@ void hex_dump(unsigned char *data, int size, char *caption)
 
 	memset(buffer, 0, 128);
 
-	printf("---------> %s <--------- (%d bytes from %p)\n", caption, size, data);
+	if (verbose && caption)
+		printf("---------> %s <--------- (%d bytes from %p)\n", caption, size, data);
 
 	// Printing the ruler...
 	printf("        +0          +4          +8          +c            0   4   8   c   \n");

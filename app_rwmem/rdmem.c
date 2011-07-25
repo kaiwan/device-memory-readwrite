@@ -1,5 +1,5 @@
 /*
- * rdm.c
+ * rdmem.c
  * Utility to read memory and display it.
  *
  * License: GPL v2.
@@ -23,14 +23,13 @@ int main(int argc, char **argv)
 	int fd;
 	ST_RDM st_rdm;
 	unsigned long orig_addr=0;
-	//unsigned char *cbuf=NULL;
 
 	if (argc < 2) {
 		fprintf (stderr, "\
 Usage: %s [-o] <address/offset> [len]\n\
 [-o]: optional parameter:\n\
  : '-o' present implies the next parameter is an OFFSET and NOT an absolute address [HEX]\n\
- (this is the typical usage for looking at hardware registers that are offset from an IO base..\n\
+ (this is the typical usage for looking at hardware registers that are offset from an IO base..)\n\
  : absence of '-o' implies that the next parameter is an ADDRESS [HEX]\n\
 offset -or- address : required parameter:\n\
  start offset or address to read memory from (HEX).\n\
@@ -117,22 +116,8 @@ strtol_err:
          (unsigned int)orig_addr, (unsigned int)st_rdm.buf, st_rdm.len, data_type);
 #endif
 
-	//void hex_dump(char *data, int size, char *caption)
-	hex_dump(st_rdm.buf, st_rdm.len, "MemDump");
-/*
-	cbuf = (unsigned char *)malloc(st_rdm.len);
-	if (!cbuf) {
-		fprintf (stderr, "Out of memory (cbuf)!\n");
-		free (st_rdm.buf);
-		close (fd);
-		exit (1);
-	}
-	swab(st_rdm.buf, cbuf, st_rdm.len);
-
-	hex_dump(cbuf, st_rdm.len, "MemDump");
-
-	free (cbuf);
-*/
+	//void hex_dump(char *data, int size, char *caption, int verbose)
+	hex_dump(st_rdm.buf, st_rdm.len, "MemDump", 0);
 	free (st_rdm.buf);
 	close (fd);
 	return 0;

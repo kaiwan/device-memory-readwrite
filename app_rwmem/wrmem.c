@@ -1,5 +1,5 @@
 /*
- * wrm.c
+ * wrmem.c
  * Utility to write to memory (4 bytes).
  *
  * License: GPL v2.
@@ -29,12 +29,13 @@ int main(int argc, char **argv)
 Usage: %s [-o] <address/offset> <value>\n\
 [-o]: optional parameter:\n\
  : '-o' present implies the next parameter is an OFFSET and NOT an absolute address [HEX]\n\
- (this is the typical usage for writing to hardware registers that are offset from an IO base..\n\
+ (this is the typical usage for writing to hardware registers that are offset from an IO base..)\n\
  : absence of '-o' implies that the next parameter is an ADDRESS [HEX]\n\
 offset -or- address : required parameter:\n\
  memory offset or address to write to (HEX).\n\
 \n\
-value: data to write to above address/offset (4 bytes) (HEX).\n", argv[0]);
+value: required parameter:\n\
+ data to write to above address/offset (4 bytes) (HEX).\n", argv[0]);
 		exit (1);
 	}
 
