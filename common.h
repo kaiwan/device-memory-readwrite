@@ -3,13 +3,10 @@
  *
  * For RDM/WRM utility.
  */
-#ifndef RDM_WRM_COMMON
-#define RDM_WRM_COMMON
+#ifndef _RDWR_MEM_COMMON
+#define _RDWR_MEM_COMMON
 
 #define APPNAME		"rdm_wrm_app"
-
-//#define DEBUG_PRINT
-#undef DEBUG_PRINT
 
 #ifdef __KERNEL__
  #ifdef DEBUG_PRINT

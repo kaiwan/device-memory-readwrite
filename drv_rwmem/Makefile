@@ -33,7 +33,8 @@ clean:
 else
 
 $(info Building with KERNELRELEASE = ${KERNELRELEASE}) 
-EXTRA_CFLAGS += -DDEBUG
+# Uncomment the -DDEBUG_PRINT directive to actiavte the 'MSG' macro...
+EXTRA_CFLAGS += -DDEBUG #-DDEBUG_PRINT
 obj-m :=    rwmem.o  
 
 endif

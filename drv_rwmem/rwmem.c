@@ -61,7 +61,11 @@ const int e = 1;
  * Reads and writes are specified to an *offset* from the IO base address.
  * The offset is what arrives from userspace in the pst_[r|w]dm->addr member.
  */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
+static int rwmem_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+#else
 static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd, unsigned long arg)
+#endif
 {
 	int i=0, err=0, retval=0;
 	volatile PST_RDM pst_rdm=NULL;
@@ -71,7 +75,6 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd, u
 	//MSG ("In ioctl method, cmd=%d type=%d\n", _IOC_NR(cmd), _IOC_TYPE(cmd));
 
 	/* Check arguments */
-	// TODO: issue on 64-bit??
 	if (_IOC_TYPE(cmd) != IOCTL_RWMEMDRV_MAGIC) {
 		printk ("%s: ioctl fail 1\n", DRVNAME);
 		return -ENOTTY;
@@ -95,14 +98,15 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd, u
 				printk (KERN_ALERT "%s: out of memory!\n", DRVNAME);
 				return -ENOMEM;
 			}
+
 			if (copy_from_user (pst_rdm, (PST_RDM)arg, sizeof (ST_RDM))) {
 				printk (KERN_ALERT "[%s] !WARNING! copy_from_user failed\n", DRVNAME);
 				kfree (pst_rdm);
 				return -EFAULT;
 			}
 
-			MSG ("pst_rdm=0x%x addr: 0x%x buf=0x%x len=%d flag=%d\n\n", 
-				(unsigned int)pst_rdm, (unsigned int)pst_rdm->addr, (unsigned int)pst_rdm->buf, 
+			MSG ("pst_rdm=0x%p addr: 0x%p buf=0x%p len=%d flag=%d\n\n", 
+				(void *)pst_rdm, (void *)pst_rdm->addr, (void *)pst_rdm->buf, 
 				pst_rdm->len, pst_rdm->flag);
 
 			kbuf = kmalloc (pst_rdm->len, GFP_KERNEL);
@@ -136,14 +140,21 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd, u
 				memcpy_fromio (tmpbuf, (void *)pst_rdm->addr, pst_rdm->len);
 			//print_hex_dump_bytes ("", DUMP_PREFIX_OFFSET, tmpbuf, pst_rdm->len);
 
+#ifndef __BIG_ENDIAN
 			/* Word-swap necesary...*/
+			MSG("Little-endian, doing word-swap..\n");
 			for (i=0; i < pst_rdm->len; i+=4) {
 				kbuf[i] = tmpbuf[i+3];
 				kbuf[i+1] = tmpbuf[i+2];
 				kbuf[i+2] = tmpbuf[i+1];
 				kbuf[i+3] = tmpbuf[i];
 			}
+#else
+			memcpy (kbuf, tmpbuf, pst_rdm->len);
+#endif
+#ifdef DEBUG_PRINT
 			print_hex_dump_bytes ("", DUMP_PREFIX_OFFSET, kbuf, pst_rdm->len);
+#endif
 
 			mb();
 			if (copy_to_user (pst_rdm->buf, kbuf, pst_rdm->len)) {
@@ -194,6 +205,7 @@ static struct file_operations rwmem_fops = {
 	.llseek        =	no_llseek,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
 	.unlocked_ioctl  = 	rwmem_ioctl,
+	//.compat_ioctl  = 	rwmem_ioctl,
 #else
 	.ioctl  = 	rwmem_ioctl,
 #endif
@@ -211,13 +223,13 @@ static int rwmem_open(struct inode * inode, struct file * filp)
 
 	if (filp->f_op && filp->f_op->open)
 		return filp->f_op->open(inode,filp); 
-	MSG("opened.");
+	MSG("opened.\n");
 	return 0;
 }
 
 static int rwmem_close(struct inode *ino, struct file *filp)
 {
-	MSG("closed.");
+	MSG("closed.\n");
 	return 0;
 }
 
@@ -296,13 +308,6 @@ static int __init rwmem_init_module(void)
 	if (res)
 		return res;
 
-#ifdef __BIG_ENDIAN
-	printk("Big-endian.\n");
-#else
-	printk("Little-endian.\n");
-#endif
-	//MSG("is_bigendian() = %d\n", is_bigendian());
-
 	// If no IO base start address specified, we're done for now
 	if (!iobase_start || !iobase_len) {
 		printk(KERN_WARNING 
@@ -327,7 +332,7 @@ get_region:
 		printk("%s: ioremap failed, aborting...\n", DRVNAME);
 		return PTR_ERR(iobase);
 	}
-	MSG("iobase = 0x%08x\n", (unsigned int)iobase);
+	MSG("iobase = 0x%p\n", (void *)iobase);
 	return 0;
 }
 

@@ -7,7 +7,8 @@ all: ${ALL}
 XTOOL := arm-none-linux-gnueabi-
 
 rdmem: rdmem.c ../common.h
-	${GCC} -Wall rdmem.c -o rdmem
+# Uncomment the -DDEBUG_PRINT directive to actiavte the 'MSG' macro...
+	${GCC} -Wall rdmem.c -o rdmem #-DDEBUG_PRINT
 wrmem: wrmem.c ../common.h
 	${GCC} -Wall wrmem.c -o wrmem
 xrdmem: rdmem.c ../common.h
