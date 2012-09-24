@@ -1,7 +1,13 @@
 /*
  * common.h
  *
- * For RDM/WRM utility.
+ * Project home: 
+ * http://code.google.com/p/device-memory-readwrite/
+ *
+ * Pl see detailed usage Wiki page here:
+ * http://code.google.com/p/device-memory-readwrite/wiki/UsageWithExamples
+ *
+ * For rdmem/wrmem utility.
  */
 #ifndef _RDWR_MEM_COMMON
 #define _RDWR_MEM_COMMON
@@ -30,7 +36,7 @@
 
 #define DEVICE_FILE		"/dev/rwmem.0"
 #define POISONVAL		0xea		// "poison value" to init alloced mem to
-#define MAX_LEN			128*1024	// 128Kb (arbit, tho it's max kmalloc len)..
+#define MAX_LEN			128*1024	// 128Kb (arbit)..
 
 #define RW_MINOR_START     0
 #define RW_COUNT           1
@@ -56,10 +62,25 @@ typedef struct _ST_WRM {
 	int flag;
 } ST_WRM, *PST_WRM;
 
+#ifdef __KERNEL__
+#include <linux/interrupt.h>
+#define PRINT_CTX() {        \
+  if (printk_ratelimit()) { \
+	  printk("PRINT_CTX:: in function %s on cpu #%2d\n", __func__, smp_processor_id()); \
+      if (!in_interrupt()) \
+	  	printk(" in process context: %s:%d\n", current->comm, current->pid); \
+	  else \
+        printk(" in interrupt context: in_interrupt:%3s in_irq:%3s in_softirq:%3s in_serving_softirq:%3s preempt_count=0x%x\n",  \
+          (in_interrupt()?"yes":"no"), (in_irq()?"yes":"no"), (in_softirq()?"yes":"no"),        \
+          (in_serving_softirq()?"yes":"no"), preempt_count());        \
+  } \
+}
+#endif
 
 #ifndef __KERNEL__
 /*------------------Functions---------------------------------*/
 
+#include <string.h>
 /*--------------- Sourced from:
 http://www.alexonlinux.com/hex-dump-functions
 All rights rest with original author(s).----------------------
