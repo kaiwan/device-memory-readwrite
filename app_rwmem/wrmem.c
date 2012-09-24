@@ -1,10 +1,16 @@
 /*
  * wrmem.c
- * Utility to write to memory (4 bytes).
+ * Utility to write to [I/O] memory (4 bytes).
+ *
+ * Project home: 
+ * http://code.google.com/p/device-memory-readwrite/
+ *
+ * Pl see detailed usage Wiki page here:
+ * http://code.google.com/p/device-memory-readwrite/wiki/UsageWithExamples
  *
  * License: GPL v2.
  *
- * Author: Kaiwan NB.
+ * Author: Kaiwan N Billimoria.
  */
 #include <stdio.h>
 #include <stdlib.h>
