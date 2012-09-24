@@ -4,11 +4,12 @@ ifeq ($(KERNELRELEASE),)
 # To support cross-compiling for the ARM:
 # For ARM, invoke make as:
 # make ARCH=arm CROSS_COMPILE=arm-none-linux-gnueabi- 
+# (or whatever CROSS_COMPILE should be...)
 ifeq ($(ARCH),arm)
-# Update 'KDIR' below to point to the ARM Linux kernel source tree
-KDIR ?= ~/trg/beagleboard/linux-2.6.33.2
+   # *UPDATE* 'KDIR' below to point to the ARM Linux kernel source tree
+   KDIR ?= ~/DG-L3/pandaboard/custom/kernel/linux-3.1.5
 else
-KDIR ?= /lib/modules/$(shell uname -r)/build 
+   KDIR ?= /lib/modules/$(shell uname -r)/build 
 endif
 #########################################
 
@@ -21,14 +22,7 @@ build:
 install:
 	$(MAKE) -C $(KDIR) M=$(PWD) modules_install
 clean:
-	find . -name \*.o -exec rm -rf '{}' ';'
-	find . -name .\*.o.cmd -exec rm -rf '{}' ';'
-	find . -name \*.*~ -exec rm -rf '{}' ';'
-	find . -name \*.*.bak -exec rm -rf '{}' ';'
-	rm -f *.ko *.o *.mod.* .*.cmd
-	rm -rf Module.symvers
-	rm -rf modules.order
-	rm -rf .tmp_versions
+	$(MAKE) -C $(KDIR) M=$(PWD) clean
 
 else
 
