@@ -1,9 +1,16 @@
 /*
  * rwmem.c
- * Read/Write memory kernel driver.
+ * Read/Write [I/O] memory kernel driver.
+ *
+ * Project home: 
+ * http://code.google.com/p/device-memory-readwrite/
+ *
+ * Pl see detailed usage Wiki page here:
+ * http://code.google.com/p/device-memory-readwrite/wiki/UsageWithExamples
  *
  * License: GPL v2.
- * Author: Kaiwan NB.
+ * Author: Kaiwan N Billimoria
+ * kaiwan -at- desigergraphix dot com
  */
 
 #include <linux/kernel.h>
@@ -20,6 +27,8 @@
 #include <linux/ioctl.h>
 #include <asm/io.h>
 #include <asm/byteorder.h>
+#include <linux/mutex.h>
+#include <linux/interrupt.h>
 #include "../common.h"
 
 #define	DRVNAME			"rwmem"
@@ -39,30 +48,38 @@ struct rw_dev {
 } *rw_devp;
 static void __iomem * iobase=NULL;
 
+static DEFINE_MUTEX (mtx);
+
 //-------------- Module params
-static u32 iobase_start=0x0;
+static unsigned long iobase_start=0x0;
 module_param(iobase_start, ulong, 0);
 MODULE_PARM_DESC(iobase_start, "Start (physical) address of IO base memory (typically h/w registers mapped here by the processor)");
+
 static int iobase_len=0;
 module_param(iobase_len, uint, 0);
 MODULE_PARM_DESC(iobase_len, "Length (in bytes) of IO base memory (typically h/w registers mapped here by the processor)");
+
 static int force_rel=0;
 module_param(force_rel, uint, 0);
 MODULE_PARM_DESC(force_rel, "Set to 1 to Force releasing the IO base memory region, even if (esp if) already mapped.\n\
 WARNING! Could be dangerous!");
+
 static char *reg_name;
 module_param(reg_name, charp, 0);
 MODULE_PARM_DESC(reg_name, "Set to a string describing the IO base memory region being mapped by this driver.");
 
+#if 0
 const int e = 1;
 #define is_bigendian() ( (*(char*)&e) == 0 )
+#endif
 
 /*
- * Reads and writes are specified to an *offset* from the IO base address.
- * The offset is what arrives from userspace in the pst_[r|w]dm->addr member.
+ * Reads and writes can be specified to be an *offset* from the IO base address.
+ * In this case, pst_[r|w]dm->flag == 0 and the offset is what arrives from 
+ * userspace in the pst_[r|w]dm->addr member.
  */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
-static int rwmem_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+static long rwmem_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 #else
 static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd, unsigned long arg)
 #endif
@@ -71,16 +88,25 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd, u
 	volatile PST_RDM pst_rdm=NULL;
 	volatile PST_WRM pst_wrm=NULL;
 	unsigned char *kbuf=NULL, *tmpbuf=NULL;
+	unsigned long flags;
 
+	if (mutex_lock_interruptible (&mtx)) {
+		MSG("pid %d: mtx lock interrupted!\n", current->pid);
+		return -ERESTARTSYS;
+	}
+	
 	//MSG ("In ioctl method, cmd=%d type=%d\n", _IOC_NR(cmd), _IOC_TYPE(cmd));
+	PRINT_CTX();
 
 	/* Check arguments */
 	if (_IOC_TYPE(cmd) != IOCTL_RWMEMDRV_MAGIC) {
 		printk ("%s: ioctl fail 1\n", DRVNAME);
+		mutex_unlock (&mtx);
 		return -ENOTTY;
 	}
 	if (_IOC_NR(cmd) > IOCTL_RWMEMDRV_MAXIOCTL) {
 		printk ("%s: ioctl fail 2\n", DRVNAME);
+		mutex_unlock (&mtx);
 		return -ENOTTY;
 	}
 
@@ -89,20 +115,24 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd, u
 		err = !access_ok (VERIFY_WRITE, (void __user *)arg, _IOC_SIZE(cmd));
 	else if (_IOC_DIR(cmd) & _IOC_WRITE)
 		err = !access_ok (VERIFY_READ, (void __user *)arg, _IOC_SIZE(cmd));
-	if (err) 
+	if (err) {
+		printk ("%s: ioctl direction check fail!\n", DRVNAME);
+		mutex_unlock (&mtx);
 		return -EFAULT;
+	}
 
 	switch (cmd) {
 		case IOCTL_RWMEMDRV_IOCGMEM: /* 'rdmem' */
-			if (!(pst_rdm = kmalloc (sizeof (ST_RDM), GFP_KERNEL))) {
+			if (!(pst_rdm = kzalloc (sizeof (ST_RDM), GFP_KERNEL))) {
 				printk (KERN_ALERT "%s: out of memory!\n", DRVNAME);
-				return -ENOMEM;
+				retval = -ENOMEM;
+				goto rdm_out_unlock;
 			}
 
 			if (copy_from_user (pst_rdm, (PST_RDM)arg, sizeof (ST_RDM))) {
 				printk (KERN_ALERT "[%s] !WARNING! copy_from_user failed\n", DRVNAME);
-				kfree (pst_rdm);
-				return -EFAULT;
+				retval = -EFAULT;
+				goto rdm_out_kfree_1;
 			}
 
 			MSG ("pst_rdm=0x%p addr: 0x%p buf=0x%p len=%d flag=%d\n\n", 
@@ -112,8 +142,8 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd, u
 			kbuf = kmalloc (pst_rdm->len, GFP_KERNEL);
 			if (!kbuf) {
 				printk (KERN_ALERT "%s: out of memory! (kbuf)\n", DRVNAME);
-				kfree (pst_rdm);
-				return -ENOMEM;
+				retval = -ENOMEM;
+				goto rdm_out_kfree_1;
 			}
 			memset (kbuf, POISONVAL, sizeof (kbuf));
 			//MSG ("kbuf=0x%x pst_rdm=0x%x\n", (unsigned int)kbuf, (unsigned int)pst_rdm);
@@ -121,11 +151,13 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd, u
 			tmpbuf = kmalloc (pst_rdm->len, GFP_KERNEL);
 			if (!tmpbuf) {
 				printk (KERN_ALERT "%s: out of memory! (tmpbuf)\n", DRVNAME);
-				kfree (kbuf);
-				kfree (pst_rdm);
-				return -ENOMEM;
+				retval = -ENOMEM;
+				goto rdm_out_kfree_2;
 			}
 			memset (tmpbuf, POISONVAL, sizeof (tmpbuf));
+
+			//---------Critical section BEGIN: save & turn off interrupts
+			local_irq_save (flags);
 
 #if 0  //------------- ioread32_rep does NOT seem to work! ioread32 does...(on ARM BB). WHY ???
 			if (USE_IOBASE == pst_rdm->flag)
@@ -133,12 +165,19 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd, u
 			else
 				ioread32_rep (kbuf, (void *)pst_rdm->addr, pst_rdm->len/sizeof(void *));
 			print_hex_dump_bytes ("", DUMP_PREFIX_OFFSET, tmpbuf, pst_rdm->len);
-#endif
-			if (USE_IOBASE == pst_rdm->flag)
+#else
+			if (USE_IOBASE == pst_rdm->flag) { // offset relative to iobase address passed
+				MSG ("dest:tmpbuf=0x%08x src:(iobase+pst_rdm->addr)=0x%08x pst_rdm->len=%d\n", 
+					(u32)tmpbuf, (u32)(iobase+pst_rdm->addr), pst_rdm->len);
 				memcpy_fromio (tmpbuf, (iobase+pst_rdm->addr), pst_rdm->len);
-			else
+			}
+			else { // absolute (virtual) address passed
 				memcpy_fromio (tmpbuf, (void *)pst_rdm->addr, pst_rdm->len);
+			} 
 			//print_hex_dump_bytes ("", DUMP_PREFIX_OFFSET, tmpbuf, pst_rdm->len);
+#endif
+			local_irq_restore (flags);
+			//---------Critical section END: restored interrupt state
 
 #ifndef __BIG_ENDIAN
 			/* Word-swap necesary...*/
@@ -159,43 +198,67 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd, u
 			mb();
 			if (copy_to_user (pst_rdm->buf, kbuf, pst_rdm->len)) {
 				printk (KERN_ALERT "[%s] !WARNING! copy_to_user failed\n", DRVNAME);
-				kfree (tmpbuf);
-				kfree (kbuf);
-				kfree (pst_rdm);
-				return -EFAULT;
+				retval = -EFAULT;
+				goto rdm_out_kfree_3;
 			}
+			retval = pst_rdm->len;
+
+rdm_out_kfree_3:
 			kfree (tmpbuf);
+rdm_out_kfree_2:
 			kfree (kbuf);
+rdm_out_kfree_1:
 			kfree (pst_rdm);
-			break;
+rdm_out_unlock:
+			mutex_unlock (&mtx);
+			return retval;
+
+			break; // never reached
 
 		case IOCTL_RWMEMDRV_IOCSMEM: /* 'wrmem' */
-			if (!capable (CAP_SYS_ADMIN))
-				return -EPERM;
+			if (!capable (CAP_SYS_ADMIN)) {
+				retval = -EPERM;
+				goto wrm_out_unlock;
+			}
 
-			if (!(pst_wrm = kmalloc (sizeof (ST_WRM), GFP_KERNEL))) {
+			if (!(pst_wrm = kzalloc (sizeof (ST_WRM), GFP_KERNEL))) {
 				printk (KERN_ALERT "%s: out of memory!\n", DRVNAME);
-				return -ENOMEM;
+				retval = -ENOMEM;
+				goto wrm_out_unlock;
 			}
 			if (copy_from_user (pst_wrm, (PST_WRM)arg, sizeof (ST_WRM))) {
 				printk (KERN_ALERT "[%s] !WARNING! copy_from_user failed\n", DRVNAME);
-				kfree (pst_wrm);
-				return -EFAULT;
+				retval = -EFAULT;
+				goto wrm_out_kfree_1;
 			}
 			MSG ("addr/offset: 0x%x val=0x%x\n", 
 				(unsigned int)pst_wrm->addr, (unsigned int)pst_wrm->val);
 
+			//---------Critical section BEGIN: save & turn off interrupts
+			local_irq_save (flags);
 			if (USE_IOBASE == pst_wrm->flag)
 				iowrite32 ((u32)pst_wrm->val, pst_wrm->addr+iobase);
 			else
 				iowrite32 ((u32)pst_wrm->val, (void __iomem *)pst_wrm->addr);
 			wmb();
+			local_irq_restore (flags);
+			//---------Critical section END: restored interrupt state
+
+			retval = sizeof(u32);
+
+wrm_out_kfree_1:
 			kfree (pst_wrm);
-			break;
+wrm_out_unlock:
+			mutex_unlock (&mtx);
+			return retval;
+
+			break; // never reached
 
 		default:
-			return -ENOTTY;
+			retval = -ENOTTY;
 	}
+
+	mutex_unlock (&mtx);
 	return retval;
 }
 
@@ -205,7 +268,6 @@ static struct file_operations rwmem_fops = {
 	.llseek        =	no_llseek,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
 	.unlocked_ioctl  = 	rwmem_ioctl,
-	//.compat_ioctl  = 	rwmem_ioctl,
 #else
 	.ioctl  = 	rwmem_ioctl,
 #endif
@@ -245,7 +307,7 @@ static struct file_operations rwmem_open_fops = {
 static dev_t chardrv_dev_number;
 static struct chardrv_dev {
 	char name[10];
-	struct cdev cdev;     /* Char device structure */
+	struct cdev cdev;
 } *chardrv_devp;
 static struct class *chardrv_class=NULL;
 
@@ -327,9 +389,11 @@ get_region:
 		printk("%s: Could not get IO resource, aborting...\n", DRVNAME);
 		return PTR_ERR(iores);
 	}
+
 	iobase = ioremap (iobase_start, iobase_len);
 	if (!iobase) {
 		printk("%s: ioremap failed, aborting...\n", DRVNAME);
+		release_mem_region (iobase_start, iobase_len);
 		return PTR_ERR(iobase);
 	}
 	MSG("iobase = 0x%p\n", (void *)iobase);
@@ -359,7 +423,6 @@ static void __exit rwmem_cleanup_module(void)
 module_init(rwmem_init_module);
 module_exit(rwmem_cleanup_module);
 
-MODULE_AUTHOR("(c) Kaiwan NB");
-MODULE_DESCRIPTION("Char driver to implement read/write memory support.");
+MODULE_AUTHOR("(c) Kaiwan N Billimoria");
+MODULE_DESCRIPTION("Char driver to implement read/write (I/O) memory support.");
 MODULE_LICENSE("GPL");
-
