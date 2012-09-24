@@ -3,12 +3,15 @@ ALL := rdmem wrmem x86_rdmem x86_wrmem
 GCC := gcc
 all: ${ALL}
 
+#-----------------------
 # Cross toolchain compile for the utils on BeagleBoard (or whatever)
 # Update XTOOL var below to your toolchain prefix
 #  Buildroot's uClibc toolchain
 XTOOL := arm-linux-
 #  CodeSourcery q3-2009 glibc toolchain
 #XTOOL := arm-none-linux-gnueabi-
+# Also, you must ensure that the above toolchain is in your PATH
+#-----------------------
 
 x86_rdmem: rdmem.c ../common.h
 # Uncomment the -DDEBUG_PRINT directive to actiavte the 'MSG' macro...
