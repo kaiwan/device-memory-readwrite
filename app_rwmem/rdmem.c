@@ -1,9 +1,15 @@
 /*
  * rdmem.c
- * Utility to read memory and display it.
+ * Utility to read [I/O] memory and display it.
  *
+ * Project home: 
+ * http://code.google.com/p/device-memory-readwrite/
+ *
+ * Pl see detailed usage Wiki page here:
+ * http://code.google.com/p/device-memory-readwrite/wiki/UsageWithExamples
+ * 
  * License: GPL v2.
- * Author: Kaiwan NB.
+ * Author: Kaiwan N Billimoria.
  */
 #include <stdio.h>
 #include <stdlib.h>
