@@ -24,14 +24,9 @@
 #include "../common.h"
 
 
-int main(int argc, char **argv)
+static void usage(char *name)
 {
-	int fd;
-	ST_RDM st_rdm;
-	unsigned long orig_addr=0;
-
-	if (argc < 2) {
-		fprintf (stderr, "\
+	fprintf (stderr, "\
 Usage: %s [-o] <address/offset> [len]\n\
 [-o]: optional parameter:\n\
  : '-o' present implies the next parameter is an OFFSET and NOT an absolute address [HEX]\n\
@@ -42,11 +37,30 @@ offset -or- address : required parameter:\n\
 \n\
 len: optional parameter:\n\
  length : number of items to read. Default = 4 bytes (HEX).\n", 
-    argv[0]);
+    name);
+}
+
+int main(int argc, char **argv)
+{
+	int fd;
+	ST_RDM st_rdm;
+	unsigned long orig_addr=0;
+
+	if (argc < 2) {
+		usage (argv[0]);
 		exit (1);
 	}
 
 // TODO- clean up the bloody mess with args processing!
+	if ((!strncmp(argv[1], "-o", 2)) && argc == 2) {	// address specified as an Offset
+		fprintf (stderr, "%s: you're expected to pass the offset as a _separate_ parameter.\n"
+		"Eg. you want to read 4 bytes from offset 8 onward:\n" 
+		"%s -o8  <-- WRONG\n"
+		"%s -o 8  <-- RIGHT\n\n", 
+			argv[0], argv[0], argv[0]);
+		usage (argv[0]);
+		exit (1);
+	}
 
 	// Init the rdm structure
 	memset (&st_rdm, 0, sizeof (ST_RDM));
