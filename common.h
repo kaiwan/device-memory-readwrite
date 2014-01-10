@@ -36,6 +36,7 @@
 
 #define DEVICE_FILE		"/dev/rwmem.0"
 #define POISONVAL		0xea		// "poison value" to init alloced mem to
+#define MIN_LEN 		4
 #define MAX_LEN			128*1024	// 128Kb (arbit)..
 
 #define RW_MINOR_START     0

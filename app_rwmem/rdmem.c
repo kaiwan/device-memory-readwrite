@@ -23,6 +23,21 @@
 #include <sys/ioctl.h>
 #include "../common.h"
 
+/* 
+ * Compute the next highest power of 2 of 32-bit v
+ * Credit: http://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
+ */
+unsigned int roundup_powerof2(unsigned int v)
+{
+	v--;
+	v |= v >> 1;
+	v |= v >> 2;
+	v |= v >> 4;
+	v |= v >> 8;
+	v |= v >> 16;
+	v++;
+	return v;
+}
 
 static void usage(char *name)
 {
@@ -36,8 +51,10 @@ offset -or- address : required parameter:\n\
  start offset or address to read memory from (HEX).\n\
 \n\
 len: optional parameter:\n\
- length : number of items to read. Default = 4 bytes (HEX).\n", 
-    name);
+ length : number of items to read. Default = 4 bytes (HEX)\n"
+ " Restrictions: length must be in the range [%d-%d] and\n"
+ " a power of 2 (if not, it will be auto rounded-up to the next ^2).\n", 
+    name, MIN_LEN, MAX_LEN);
 }
 
 int main(int argc, char **argv)
@@ -94,7 +111,11 @@ strtol_err:
 	orig_addr = st_rdm.addr;
 	MSG("1 st_rdm.addr=0x%x\n", (unsigned int)st_rdm.addr);
 
-	// Length is number of "items" to read of size "date_type" each
+	/* Length is number of "items" to read of size "date_type" each.
+	   Restrictions:
+	   - should be in the range [MIN_LEN to MAX_LEN] [curr 4 - 131072]
+	   - should be a power of 2. If not, it will be rounded up to the next power of 2.
+	 */
 	st_rdm.len = sizeof(int);
 	errno=0;
 	if (argc == 3) {	// either: (addr and length specified) OR ('-o' and offset) specified
@@ -104,16 +125,19 @@ strtol_err:
 	else if (argc == 4) {	// -o passed and length specified
 		st_rdm.len = strtol (argv[3], 0, 16);
 	}
-
 	if ((errno == ERANGE && (st_rdm.addr == ULONG_MAX || st_rdm.addr == LLONG_MIN))
    	  || (errno != 0 && st_rdm.addr == 0))
 		goto strtol_err;
 
-	MSG("len = 0x%x (%d) bytes\n", st_rdm.len, st_rdm.len);
-	if ((st_rdm.len <= 0) || (st_rdm.len > MAX_LEN)) {
-		fprintf (stderr, "%s: Invalid length (max=0x%x)\n", argv[0], MAX_LEN);
-		exit (1);
-	}
+    MSG("len = 0x%x (%d) bytes\n", st_rdm.len, st_rdm.len);
+    if ((st_rdm.len < MIN_LEN) || (st_rdm.len > MAX_LEN)) {
+        fprintf (stderr, "%s: Invalid length (valid range: [%d-%d]).\n", 
+			argv[0], MIN_LEN, MAX_LEN);
+        exit (1);
+    }
+	st_rdm.len=roundup_powerof2(st_rdm.len);
+	MSG("final: len=%d\n", st_rdm.len);
+
 
 	st_rdm.buf = (unsigned char *)calloc (st_rdm.len, sizeof (unsigned char));
 	if (!st_rdm.buf) {
