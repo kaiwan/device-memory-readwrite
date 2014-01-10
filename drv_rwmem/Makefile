@@ -4,10 +4,14 @@ ifeq ($(KERNELRELEASE),)
 # To support cross-compiling for the ARM:
 # For ARM, invoke make as:
 # make ARCH=arm CROSS_COMPILE=arm-none-linux-gnueabi- 
+# -or-
+# make ARCH=arm CROSS_COMPILE=arm-buildroot-linux-uclibcgnueabi-      <-- for the R Pi!
 # (or whatever CROSS_COMPILE should be...)
 ifeq ($(ARCH),arm)
    # *UPDATE* 'KDIR' below to point to the ARM Linux kernel source tree
-   KDIR ?= ~/DG-L3/pandaboard/custom/kernel/linux-3.1.5
+   KDIR ?= ~/DG-L3/RPi/kernel_RPi/linux-3.6.11-rpi
+   #KDIR ?= ~/DG-L3/pandaboard/custom/kernel/linux-3.1.5
+   #KDIR ?= ~/DG-L3/linux-3.2.21 # for QEMU ARM/Linux
 else
    KDIR ?= /lib/modules/$(shell uname -r)/build 
 endif
