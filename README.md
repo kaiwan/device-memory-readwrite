@@ -1,5 +1,5 @@
 # device-memory-readwrite
-Automatically exported from code.google.com/p/device-memory-readwrite
+[Automatically exported from code.google.com/p/device-memory-readwrite]
 
 Read and/or Write to pretty much _any_ memory location (RAM or H/W IO Memory) on a device.
 
@@ -15,4 +15,4 @@ ioctl system call.
 This could be extremely useful for driver authors, kernel developers, etc who want to peek/poke memory 
 for prototyping purposes, learning, debug, testing, register lookups/writes and similar purposes.
 
-To get started, read the Wiki page (Wiki menu) and clone the git tree (from the Source menu).
+To get started, please read the "DevMem RW - Usage with Examples" PDF document, clone the git tree and get to it!
