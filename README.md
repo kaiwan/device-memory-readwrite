@@ -15,4 +15,4 @@ ioctl system call.
 This could be extremely useful for driver authors, kernel developers, etc who want to peek/poke memory 
 for prototyping purposes, learning, debug, testing, register lookups/writes and similar purposes.
 
-To get started, please read the "DevMem RW - Usage with Examples" PDF document, clone the git tree and get to it!
+To get started, please read clone the git tree, read the 'Devmem HOWTO.pdf' PDF document, and get to it!
