@@ -7,7 +7,7 @@ all: ${ALL}
 # Cross toolchain compile for the utils on BeagleBoard (or whatever)
 # Update XTOOL var below to your toolchain prefix
 #  Buildroot's uClibc toolchain
-XTOOL := arm-unknown-linux-uclibcgnueabi-
+XTOOL := arm-none-linux-gnueabi-
 #  CodeSourcery q3-2009 glibc toolchain
 #XTOOL := arm-none-linux-gnueabi-
 # Also, you must ensure that the above toolchain is in your PATH
