@@ -79,11 +79,16 @@ int main(int argc, char **argv)
 		exit (1);
 	}
 
+//---
+printf("PID %d. [Enter] to cont...", getpid());
+getc(stdin);
+//---
+
 	// Init the rdm structure
 	memset (&st_rdm, 0, sizeof (ST_RDM));
 
 	if((fd = open (DEVICE_FILE, O_RDONLY, 0)) == -1) {
-		perror("device file open failed. Driver 'rwmem' not loaded?");
+		perror("device file open failed. Driver 'rwmem' not loaded? -or- not root?");
 		exit(1); 
 	}
 
