@@ -145,7 +145,7 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd, u
 				retval = -ENOMEM;
 				goto rdm_out_kfree_1;
 			}
-			memset (kbuf, POISONVAL, sizeof (kbuf));
+			memset (kbuf, POISONVAL, pst_rdm->len); // sizeof (kbuf));
 			//MSG ("kbuf=0x%x pst_rdm=0x%x\n", (unsigned int)kbuf, (unsigned int)pst_rdm);
 
 			tmpbuf = kmalloc (pst_rdm->len, GFP_KERNEL);
@@ -154,7 +154,7 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd, u
 				retval = -ENOMEM;
 				goto rdm_out_kfree_2;
 			}
-			memset (tmpbuf, POISONVAL, sizeof (tmpbuf));
+			memset (tmpbuf, POISONVAL, pst_rdm->len); //sizeof (tmpbuf));
 
 			//---------Critical section BEGIN: save & turn off interrupts
 			local_irq_save (flags);
@@ -396,7 +396,7 @@ get_region:
 		release_mem_region (iobase_start, iobase_len);
 		return PTR_ERR(iobase);
 	}
-	MSG("iobase = 0x%p\n", (void *)iobase);
+	MSG("iobase = %p\n", (void *)iobase);
 	return 0;
 }
 
