@@ -49,7 +49,7 @@ value: required parameter:\n\
 	memset (&st_wrm, 0, sizeof (ST_WRM));
 
 	if((fd = open (DEVICE_FILE, O_RDWR, 0)) == -1) {
-		perror("device file open failed. Driver 'rwmem' not loaded?");
+		perror("device file open failed. Driver 'rwmem' not loaded? -or- not root?");
 		exit(1); 
 	}
 
