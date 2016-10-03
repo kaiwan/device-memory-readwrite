@@ -57,17 +57,17 @@ value: required parameter:\n\
 	errno=0;
 	if ((argc == 4) && (!strncmp(argv[1], "-o", 2))) {	// address specified as an Offset
 		st_wrm.flag = USE_IOBASE;
-		// Have to use strtoll as strtol() overflows...
-		st_wrm.addr = strtoll (argv[2], 0, 16);
+		// Have to use strtoull (for 64 bit) as strtol() overflows...
+		st_wrm.addr = strtoull (argv[2], 0, 16);
 	} else {
-		st_wrm.addr = strtoll (argv[1], 0, 16);
+		st_wrm.addr = strtoull (argv[1], 0, 16);
 	}
 	if ((errno == ERANGE && (st_wrm.addr == ULONG_MAX || st_wrm.addr == LLONG_MIN))
         || (errno != 0 && st_wrm.addr == 0)) {
 		perror("strtoll addr");
  		exit(EXIT_FAILURE);
 	}
-	MSG ("addr/offset = 0x%08x\n", (unsigned int)st_wrm.addr);
+	MSG ("addr/offset = 0x%p\n", (void *)st_wrm.addr);
 
 	errno=0;
 	if (st_wrm.flag == USE_IOBASE)
@@ -80,8 +80,8 @@ value: required parameter:\n\
  		exit(EXIT_FAILURE);
 	}
 
-	MSG ("addr: 0x%x val=0x%x\n",
-         (unsigned int)st_wrm.addr, (unsigned int)st_wrm.val);
+	MSG ("addr: 0x%p val=0x%x\n",
+         (void *)st_wrm.addr, (unsigned int)st_wrm.val);
 	if (ioctl (fd, IOCTL_RWMEMDRV_IOCSMEM, &st_wrm) == -1) {
 		perror("ioctl");
 		close (fd);
@@ -91,4 +91,3 @@ value: required parameter:\n\
 	close (fd);
 	return 0;
 }
-
