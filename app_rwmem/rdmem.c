@@ -79,10 +79,10 @@ int main(int argc, char **argv)
 		exit (1);
 	}
 
-//---
+#if 0
 printf("PID %d. [Enter] to cont...", getpid());
 getc(stdin);
-//---
+#endif
 
 	// Init the rdm structure
 	memset (&st_rdm, 0, sizeof (ST_RDM));
@@ -96,11 +96,11 @@ getc(stdin);
 	errno=0;
 	if (!strncmp(argv[1], "-o", 2)) {	// address specified as an Offset
 		st_rdm.flag = USE_IOBASE;
-		// Have to use strtoll as strtol() overflows...
-		st_rdm.addr = strtoll (argv[2], 0, 16);
+		// Have to use strtoull as strtol() overflows...
+		st_rdm.addr = strtoull (argv[2], 0, 16);
 	}
 	else {
-		st_rdm.addr = strtoll (argv[1], 0, 16);
+		st_rdm.addr = strtoull (argv[1], 0, 16);
 	}
 
 	if ((errno == ERANGE && (st_rdm.addr == ULONG_MAX || st_rdm.addr == LLONG_MIN))
@@ -114,7 +114,7 @@ strtol_err:
  		exit(EXIT_FAILURE);
 	}
 	orig_addr = st_rdm.addr;
-	MSG("1 st_rdm.addr=0x%x\n", (unsigned int)st_rdm.addr);
+	MSG("1 st_rdm.addr=0x%p\n", (void *)st_rdm.addr);
 
 	/* Length is number of "items" to read of size "date_type" each.
 	   Restrictions:
@@ -150,8 +150,8 @@ strtol_err:
 		exit (1);
 	}
 
-	MSG ("addr: 0x%x buf=0x%x len=0x%x flag=%d\n",
-         (unsigned int)st_rdm.addr, (unsigned int)st_rdm.buf, (unsigned int)st_rdm.len, st_rdm.flag);
+	MSG ("addr: 0x%p buf=0x%p len=0x%x flag=%d\n",
+         (void *)st_rdm.addr, st_rdm.buf, (unsigned int)st_rdm.len, st_rdm.flag);
 	if (ioctl (fd, IOCTL_RWMEMDRV_IOCGMEM, &st_rdm) == -1) {
 		perror("ioctl");
 		free (st_rdm.buf);
