@@ -17,7 +17,7 @@
 #ifdef __KERNEL__
  #ifdef DEBUG_PRINT
   #define MSG(string, args...) \
-	printk (KERN_ALERT "[%s]%s:%d: " string, \
+	pr_alert ("[%s]%s:%d: " string, \
 		DRVNAME, __FUNCTION__, __LINE__, ##args)
   #define QP MSG("\n");
  #else
@@ -26,7 +26,7 @@
 #else // userspace
  #ifdef DEBUG_PRINT
  #define MSG(string, args...) \
-	printf ("[%s]%s:%d: " string, \
+	fprintf (stderr, "[%s]%s:%d: " string, \
 		APPNAME, __FUNCTION__, __LINE__, ##args)
  #else
  #define MSG(string, args...)
@@ -63,19 +63,74 @@ typedef struct _ST_WRM {
 	int flag;
 } ST_WRM, *PST_WRM;
 
+
+
 #ifdef __KERNEL__
+/*------------------------ PRINT_CTX ---------------------------------*/
+/* 
+ An interesting way to print the context info:
+ If USE_FTRACE_PRINT is On, it implies we'll use trace_printk(), else the vanilla
+ printk(). 
+ If we are using trace_printk(), we will automatically get output in the ftrace 
+ latency format (see below):
+
+ * The Ftrace 'latency-format' :
+                       _-----=> irqs-off          [d]
+                      / _----=> need-resched      [N]
+                     | / _---=> hardirq/softirq   [H|h|s]   H=>both h && s
+                     || / _--=> preempt-depth     [#]
+                     ||| /                      
+ CPU  TASK/PID       ||||  DURATION                  FUNCTION CALLS 
+ |     |    |        ||||   |   |                     |   |   |   | 
+
+ However, if we're _not_ using ftrace trace_printk(), then we'll _emulate_ the same
+ with the printk() !
+ (Of course, without the 'Duration' and 'Function Calls' fields).
+ */
+#include <linux/sched.h>
 #include <linux/interrupt.h>
-#define PRINT_CTX() {        \
-  if (printk_ratelimit()) { \
-	  printk("PRINT_CTX:: in function %s on cpu #%2d\n", __func__, smp_processor_id()); \
-      if (!in_interrupt()) \
-	  	printk(" in process context: %s:%d\n", current->comm, current->pid); \
-	  else \
-        printk(" in interrupt context: in_interrupt:%3s in_irq:%3s in_softirq:%3s in_serving_softirq:%3s preempt_count=0x%x\n",  \
-          (in_interrupt()?"yes":"no"), (in_irq()?"yes":"no"), (in_softirq()?"yes":"no"),        \
-          (in_serving_softirq()?"yes":"no"), preempt_count());        \
-  } \
-}
+
+#ifndef USE_FTRACE_PRINT	// 'normal' printk(), lets emulate ftrace latency format
+#define PRINT_CTX() do {                                                                     \
+	char sep='|', intr='.';                                                              \
+	                                                                                     \
+   if (in_interrupt()) {                                                                     \
+      if (in_irq() && in_softirq())                                                          \
+	    intr='H';                                                                        \
+	  else if (in_irq())                                                                 \
+	    intr='h';                                                                        \
+	  else if (in_softirq())                                                             \
+	    intr='s';                                                                        \
+	}                                                                                    \
+   else                                                                                      \
+	intr='.';                                                                            \
+	                                                                                     \
+	MSG(                                                                            \
+	"PRINT_CTX:: [%03d]%c%s%c:%d   %c "                                                  \
+	"%c%c%c%u "                                                                          \
+	"\n"                                                                                 \
+	, smp_processor_id(),                                                                \
+    (!current->mm?'[':' '), current->comm, (!current->mm?']':' '), current->pid, sep,        \
+	(irqs_disabled()?'d':'.'),                                                           \
+	(need_resched()?'N':'.'),                                                            \
+	intr,                                                                                \
+	(preempt_count() && 0xff)                                                            \
+	);                                                                                   \
+} while (0)
+#else				// using ftrace trace_prink() internally
+#define PRINT_CTX() do {                                                                   \
+	MSG("PRINT_CTX:: [cpu %02d]%s:%d\n", smp_processor_id(), __func__, current->pid); \
+	if (!in_interrupt()) {                                                                 \
+  		MSG(" in process context:%c%s%c:%d\n",                                        \
+		    (!current->mm?'[':' '), current->comm, (!current->mm?']':' '), current->pid);  \
+	} else {                                                                               \
+        MSG(" in interrupt context: in_interrupt:%3s. in_irq:%3s. in_softirq:%3s. "   \
+		"in_serving_softirq:%3s. preempt_count=0x%x\n",                                    \
+          (in_interrupt()?"yes":"no"), (in_irq()?"yes":"no"), (in_softirq()?"yes":"no"),   \
+          (in_serving_softirq()?"yes":"no"), (preempt_count() && 0xff));                   \
+	}                                                                                      \
+} while (0)
+#endif
 #endif
 
 #ifndef __KERNEL__
