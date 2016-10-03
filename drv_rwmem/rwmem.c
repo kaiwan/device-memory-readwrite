@@ -3,14 +3,14 @@
  * Read/Write [I/O] memory kernel driver.
  *
  * Project home: 
- * http://code.google.com/p/device-memory-readwrite/
+ * https://github.com/kaiwan/device-memory-readwrite
  *
  * Pl see detailed usage Wiki page here:
- * http://code.google.com/p/device-memory-readwrite/wiki/UsageWithExamples
+ * https://github.com/kaiwan/device-memory-readwrite/blob/master/Devmem_HOWTO.pdf
  *
- * License: GPL v2.
+ * License: GPL / LGPL.
  * Author: Kaiwan N Billimoria
- * kaiwan -at- desigergraphix dot com
+ * kaiwan -at- kaiwantech dot com
  */
 
 #include <linux/kernel.h>
@@ -135,7 +135,7 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd, u
 				goto rdm_out_kfree_1;
 			}
 
-			MSG ("pst_rdm=0x%p addr: 0x%p buf=0x%p len=%d flag=%d\n\n", 
+			MSG ("pst_rdm=%p addr: %p buf=%p len=%d flag=%d\n\n", 
 				(void *)pst_rdm, (void *)pst_rdm->addr, (void *)pst_rdm->buf, 
 				pst_rdm->len, pst_rdm->flag);
 
@@ -167,8 +167,8 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd, u
 			print_hex_dump_bytes ("", DUMP_PREFIX_OFFSET, tmpbuf, pst_rdm->len);
 #else
 			if (USE_IOBASE == pst_rdm->flag) { // offset relative to iobase address passed
-				MSG ("dest:tmpbuf=0x%08x src:(iobase+pst_rdm->addr)=0x%08x pst_rdm->len=%d\n", 
-					(u32)tmpbuf, (u32)(iobase+pst_rdm->addr), pst_rdm->len);
+				MSG ("dest:tmpbuf=0x%p src:(iobase+pst_rdm->addr)=0x%p pst_rdm->len=%d\n", 
+					tmpbuf, (iobase+pst_rdm->addr), pst_rdm->len);
 				memcpy_fromio (tmpbuf, (iobase+pst_rdm->addr), pst_rdm->len);
 			}
 			else { // absolute (virtual) address passed
@@ -191,6 +191,7 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd, u
 #else
 			memcpy (kbuf, tmpbuf, pst_rdm->len);
 #endif
+
 #ifdef DEBUG_PRINT
 			print_hex_dump_bytes ("", DUMP_PREFIX_OFFSET, kbuf, pst_rdm->len);
 #endif
