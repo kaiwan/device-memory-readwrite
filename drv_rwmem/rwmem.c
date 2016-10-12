@@ -1,18 +1,21 @@
 /*
  * rwmem.c
- * Read/Write [I/O] memory kernel driver.
+ *
+ * Part of the DEVMEM-RW opensource project - a simple 
+ * utility to read / write [I/O] memory and display it.
+ * This is the kernel driver.
  *
  * Project home: 
- * http://code.google.com/p/device-memory-readwrite/
+ * https://github.com/kaiwan/device-memory-readwrite
  *
- * Pl see detailed usage Wiki page here:
- * http://code.google.com/p/device-memory-readwrite/wiki/UsageWithExamples
- *
+ * Pl see detailed overview and usage PDF doc here:
+ * https://github.com/kaiwan/device-memory-readwrite/blob/master/Devmem_HOWTO.pdf
+ * 
  * License: GPL v2.
  * Author: Kaiwan N Billimoria
- * kaiwan -at- desigergraphix dot com
+ *         kaiwanTECH.
+ * kaiwan -at- kaiwantech dot com
  */
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -29,25 +32,19 @@
 #include <asm/byteorder.h>
 #include <linux/mutex.h>
 #include <linux/interrupt.h>
+#include <linux/debugfs.h>
 #include "../common.h"
 
-#define	DRVNAME			"rwmem"
-/*
- * From the 'OMAP35x Technical Refernce Manual' pg 205:
- * Table 2-4. L4-Wakeup Memory Space Mapping
- * Device Name   Start Address (Hex)    End Address (Hex)   Size (KB)    Description
- * L4-Wakeup        0x4830 0000           0x4833 FFFF           256
- * ...
- * These are physical addresses...
- */
+struct dentry * setup_debugfs_entries(void);
 
 dev_t rw_dev_number;
 struct rw_dev {
-		char name[10];
-		struct cdev cdev;     /* Char device structure      */
+	char name[10];
+	struct cdev cdev;     /* Char device structure      */
 } *rw_devp;
 static void __iomem * iobase=NULL;
 
+static struct dentry *dbgfs_parent=NULL;
 static DEFINE_MUTEX (mtx);
 
 //-------------- Module params
@@ -135,7 +132,7 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd, u
 				goto rdm_out_kfree_1;
 			}
 
-			MSG ("pst_rdm=0x%p addr: 0x%p buf=0x%p len=%d flag=%d\n\n", 
+			MSG ("pst_rdm=%p addr: %p buf=%p len=%d flag=%d\n\n", 
 				(void *)pst_rdm, (void *)pst_rdm->addr, (void *)pst_rdm->buf, 
 				pst_rdm->len, pst_rdm->flag);
 
@@ -167,8 +164,8 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd, u
 			print_hex_dump_bytes ("", DUMP_PREFIX_OFFSET, tmpbuf, pst_rdm->len);
 #else
 			if (USE_IOBASE == pst_rdm->flag) { // offset relative to iobase address passed
-				MSG ("dest:tmpbuf=0x%08x src:(iobase+pst_rdm->addr)=0x%08x pst_rdm->len=%d\n", 
-					(u32)tmpbuf, (u32)(iobase+pst_rdm->addr), pst_rdm->len);
+				MSG ("dest:tmpbuf=0x%p src:(iobase+pst_rdm->addr)=0x%p pst_rdm->len=%d\n", 
+					tmpbuf, (iobase+pst_rdm->addr), pst_rdm->len);
 				memcpy_fromio (tmpbuf, (iobase+pst_rdm->addr), pst_rdm->len);
 			}
 			else { // absolute (virtual) address passed
@@ -191,6 +188,7 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd, u
 #else
 			memcpy (kbuf, tmpbuf, pst_rdm->len);
 #endif
+
 #ifdef DEBUG_PRINT
 			print_hex_dump_bytes ("", DUMP_PREFIX_OFFSET, kbuf, pst_rdm->len);
 #endif
@@ -370,11 +368,20 @@ static int __init rwmem_init_module(void)
 	if (res)
 		return res;
 
+	dbgfs_parent = setup_debugfs_entries();
+	if (!dbgfs_parent) {
+		pr_alert("%s: debugfs setup failed, aborting...\n", DRVNAME);
+		res = PTR_ERR(dbgfs_parent);
+		return res;
+	}
+//	MSG("dbgfs_parent=%p\n", dbgfs_parent);
+
 	// If no IO base start address specified, we're done for now
 	if (!iobase_start || !iobase_len) {
 		printk(KERN_WARNING 
-		"%s: IO base address NOT specified (or len invalid) as module param; not performing ioremap...\n", 
+		"%s: Init done. IO base address NOT specified (or len invalid) as module param; so, not performing any ioremap() ...\n", 
 			DRVNAME);
+		//debugfs_remove_recursive(dbgfs_parent);
 		return 0;
 	}
 
@@ -386,6 +393,7 @@ get_region:
 			first_time=0;
 			goto get_region;
 		}
+		debugfs_remove_recursive(dbgfs_parent);
 		printk("%s: Could not get IO resource, aborting...\n", DRVNAME);
 		return PTR_ERR(iores);
 	}
@@ -393,16 +401,21 @@ get_region:
 	iobase = ioremap (iobase_start, iobase_len);
 	if (!iobase) {
 		printk("%s: ioremap failed, aborting...\n", DRVNAME);
+		debugfs_remove_recursive(dbgfs_parent);
 		release_mem_region (iobase_start, iobase_len);
 		return PTR_ERR(iobase);
 	}
 	MSG("iobase = %p\n", (void *)iobase);
+	
 	return 0;
 }
 
 static void __exit rwmem_cleanup_module(void)
 {
     int i=0;
+
+	//MSG("bf remove: dbgfs_parent=%p\n", dbgfs_parent);
+	debugfs_remove_recursive(dbgfs_parent);
 
 	if (iobase_start) {
 		iounmap (iobase);
@@ -423,6 +436,6 @@ static void __exit rwmem_cleanup_module(void)
 module_init(rwmem_init_module);
 module_exit(rwmem_cleanup_module);
 
-MODULE_AUTHOR("(c) Kaiwan N Billimoria");
+MODULE_AUTHOR("(c) Kaiwan N Billimoria, kaiwanTECH");
 MODULE_DESCRIPTION("Char driver to implement read/write (I/O) memory support.");
 MODULE_LICENSE("GPL");

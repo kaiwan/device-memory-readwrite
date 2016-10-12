@@ -1,16 +1,19 @@
 /*
  * wrmem.c
- * Utility to write to [I/O] memory (4 bytes).
+ *
+ * Part of the DEVMEM-RW opensource project - a simple 
+ * utility to read / write [I/O] memory and display it.
+ * This is the 'write' functionality app.
  *
  * Project home: 
- * http://code.google.com/p/device-memory-readwrite/
+ * https://github.com/kaiwan/device-memory-readwrite
  *
- * Pl see detailed usage Wiki page here:
- * http://code.google.com/p/device-memory-readwrite/wiki/UsageWithExamples
- *
+ * Pl see detailed overview and usage PDF doc here:
+ * https://github.com/kaiwan/device-memory-readwrite/blob/master/Devmem_HOWTO.pdf
+ * 
  * License: GPL v2.
- *
- * Author: Kaiwan N Billimoria.
+ * Author: Kaiwan N Billimoria
+ *         kaiwanTECH.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,11 +27,15 @@
 #include <sys/ioctl.h>
 #include "../common.h"
 
-
 int main(int argc, char **argv)
 {
 	int fd;
 	ST_WRM st_wrm;
+
+	if (0 != geteuid()) {
+		fprintf (stderr, "%s: This app requires root access.\n", argv[0]);
+		exit(1);
+	}
 
 	if (argc < 3) {
 		fprintf (stderr, "\
@@ -48,8 +55,8 @@ value: required parameter:\n\
 	// Init the wrm structure
 	memset (&st_wrm, 0, sizeof (ST_WRM));
 
-	if((fd = open (DEVICE_FILE, O_RDWR, 0)) == -1) {
-		perror("device file open failed. Driver 'rwmem' not loaded? -or- not root?");
+	if((fd = open (DEVICE_FILE, O_RDWR|O_CLOEXEC, 0)) == -1) {
+		perror("device file open failed. Driver 'rwmem' not loaded?");
 		exit(1); 
 	}
 
@@ -57,17 +64,17 @@ value: required parameter:\n\
 	errno=0;
 	if ((argc == 4) && (!strncmp(argv[1], "-o", 2))) {	// address specified as an Offset
 		st_wrm.flag = USE_IOBASE;
-		// Have to use strtoll as strtol() overflows...
-		st_wrm.addr = strtoll (argv[2], 0, 16);
+		// Have to use strtoull (for 64 bit) as strtol() overflows...
+		st_wrm.addr = strtoull (argv[2], 0, 16);
 	} else {
-		st_wrm.addr = strtoll (argv[1], 0, 16);
+		st_wrm.addr = strtoull (argv[1], 0, 16);
 	}
 	if ((errno == ERANGE && (st_wrm.addr == ULONG_MAX || st_wrm.addr == LLONG_MIN))
         || (errno != 0 && st_wrm.addr == 0)) {
 		perror("strtoll addr");
  		exit(EXIT_FAILURE);
 	}
-	MSG ("addr/offset = 0x%08x\n", (unsigned int)st_wrm.addr);
+	MSG ("addr/offset = %p\n", (void *)st_wrm.addr);
 
 	errno=0;
 	if (st_wrm.flag == USE_IOBASE)
@@ -80,8 +87,17 @@ value: required parameter:\n\
  		exit(EXIT_FAILURE);
 	}
 
-	MSG ("addr: 0x%x val=0x%x\n",
-         (unsigned int)st_wrm.addr, (unsigned int)st_wrm.val);
+	if (is_user_address(st_wrm.addr)) {
+		if (uaddr_valid(st_wrm.addr) == -1) {
+			fprintf(stderr, "%s: the (usermode virtual) address passed (%p) seems to be invalid. Aborting...\n",
+				argv[0], (void *)st_wrm.addr);
+			close(fd);
+			exit(1);
+		}
+	}
+
+	MSG ("addr: %p val=0x%x\n",
+         (void *)st_wrm.addr, (unsigned int)st_wrm.val);
 	if (ioctl (fd, IOCTL_RWMEMDRV_IOCSMEM, &st_wrm) == -1) {
 		perror("ioctl");
 		close (fd);
@@ -91,4 +107,3 @@ value: required parameter:\n\
 	close (fd);
 	return 0;
 }
-

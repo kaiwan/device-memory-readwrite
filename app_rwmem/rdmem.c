@@ -1,15 +1,19 @@
 /*
  * rdmem.c
- * Utility to read [I/O] memory and display it.
+ *
+ * Part of the DEVMEM-RW opensource project - a simple 
+ * utility to read / write [I/O] memory and display it.
+ * This is the 'read' functionality app.
  *
  * Project home: 
- * http://code.google.com/p/device-memory-readwrite/
+ * https://github.com/kaiwan/device-memory-readwrite
  *
- * Pl see detailed usage Wiki page here:
- * http://code.google.com/p/device-memory-readwrite/wiki/UsageWithExamples
+ * Pl see detailed overview and usage PDF doc here:
+ * https://github.com/kaiwan/device-memory-readwrite/blob/master/Devmem_HOWTO.pdf
  * 
  * License: GPL v2.
- * Author: Kaiwan N Billimoria.
+ * Author: Kaiwan N Billimoria
+ *         kaiwanTECH.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,22 +26,6 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include "../common.h"
-
-/* 
- * Compute the next highest power of 2 of 32-bit v
- * Credit: http://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
- */
-unsigned int roundup_powerof2(unsigned int v)
-{
-	v--;
-	v |= v >> 1;
-	v |= v >> 2;
-	v |= v >> 4;
-	v |= v >> 8;
-	v |= v >> 16;
-	v++;
-	return v;
-}
 
 static void usage(char *name)
 {
@@ -61,7 +49,12 @@ int main(int argc, char **argv)
 {
 	int fd;
 	ST_RDM st_rdm;
-	unsigned long orig_addr=0;
+	//unsigned long orig_addr=0;
+
+	if (0 != geteuid()) {
+		fprintf (stderr, "%s: This app requires root access.\n", argv[0]);
+		exit(1);
+	}
 
 	if (argc < 2) {
 		usage (argv[0]);
@@ -79,16 +72,16 @@ int main(int argc, char **argv)
 		exit (1);
 	}
 
-//---
+#if 0
 printf("PID %d. [Enter] to cont...", getpid());
 getc(stdin);
-//---
+#endif
 
 	// Init the rdm structure
-	memset (&st_rdm, 0, sizeof (ST_RDM));
+	memset(&st_rdm, 0, sizeof (ST_RDM));
 
-	if((fd = open (DEVICE_FILE, O_RDONLY, 0)) == -1) {
-		perror("device file open failed. Driver 'rwmem' not loaded? -or- not root?");
+	if((fd = open(DEVICE_FILE, O_RDONLY|O_CLOEXEC, 0)) == -1) {
+		perror("device file open failed. Driver 'devmem_rw' not loaded?");
 		exit(1); 
 	}
 
@@ -96,11 +89,11 @@ getc(stdin);
 	errno=0;
 	if (!strncmp(argv[1], "-o", 2)) {	// address specified as an Offset
 		st_rdm.flag = USE_IOBASE;
-		// Have to use strtoll as strtol() overflows...
-		st_rdm.addr = strtoll (argv[2], 0, 16);
+		// Have to use strtoull as strtol() overflows...
+		st_rdm.addr = strtoull (argv[2], 0, 16);
 	}
 	else {
-		st_rdm.addr = strtoll (argv[1], 0, 16);
+		st_rdm.addr = strtoull (argv[1], 0, 16);
 	}
 
 	if ((errno == ERANGE && (st_rdm.addr == ULONG_MAX || st_rdm.addr == LLONG_MIN))
@@ -111,10 +104,19 @@ strtol_err:
 			printf ("Ulong max\n");
 		 if (st_rdm.addr == LLONG_MIN)
 			printf ("long min\n");
+		close(fd);
  		exit(EXIT_FAILURE);
 	}
-	orig_addr = st_rdm.addr;
-	MSG("1 st_rdm.addr=0x%x\n", (unsigned int)st_rdm.addr);
+	MSG("1 st_rdm.addr=%p\n", (void *)st_rdm.addr);
+
+	if (is_user_address(st_rdm.addr)) {
+		if (uaddr_valid(st_rdm.addr) == -1) {
+			fprintf(stderr, "%s: the (usermode virtual) address passed (%p) seems to be invalid. Aborting...\n",
+				argv[0], (void *)st_rdm.addr);
+			close(fd);
+			exit(1);
+		}
+	}
 
 	/* Length is number of "items" to read of size "date_type" each.
 	   Restrictions:
@@ -134,24 +136,25 @@ strtol_err:
    	  || (errno != 0 && st_rdm.addr == 0))
 		goto strtol_err;
 
-    MSG("len = 0x%x (%d) bytes\n", st_rdm.len, st_rdm.len);
+    //MSG("len = 0x%x (%d) bytes\n", st_rdm.len, st_rdm.len);
     if ((st_rdm.len < MIN_LEN) || (st_rdm.len > MAX_LEN)) {
         fprintf (stderr, "%s: Invalid length (valid range: [%d-%d]).\n", 
 			argv[0], MIN_LEN, MAX_LEN);
+		close(fd);
         exit (1);
     }
 	st_rdm.len=roundup_powerof2(st_rdm.len);
 	MSG("final: len=%d\n", st_rdm.len);
 
-
 	st_rdm.buf = (unsigned char *)calloc (st_rdm.len, sizeof (unsigned char));
 	if (!st_rdm.buf) {
 		fprintf (stderr, "Out of memory!\n");
+		close(fd);
 		exit (1);
 	}
 
-	MSG ("addr: 0x%x buf=0x%x len=0x%x flag=%d\n",
-         (unsigned int)st_rdm.addr, (unsigned int)st_rdm.buf, (unsigned int)st_rdm.len, st_rdm.flag);
+	MSG ("addr: %p buf=%p len=0x%x flag=%d\n",
+         (void *)st_rdm.addr, st_rdm.buf, (unsigned int)st_rdm.len, st_rdm.flag);
 	if (ioctl (fd, IOCTL_RWMEMDRV_IOCGMEM, &st_rdm) == -1) {
 		perror("ioctl");
 		free (st_rdm.buf);
@@ -171,4 +174,3 @@ strtol_err:
 	close (fd);
 	return 0;
 }
-
