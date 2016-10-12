@@ -15,9 +15,15 @@ XTOOL := arm-none-linux-gnueabi-
 
 rdmem: rdmem.c ../common.h
 # Uncomment the -DDEBUG_PRINT directive to actiavte the 'MSG' macro...
+<<<<<<< HEAD
 	${GCC} -Wall rdmem.c -o rdmem #-DDEBUG_PRINT
 wrmem: wrmem.c ../common.h
 	${GCC} -Wall wrmem.c -o wrmem #-DDEBUG_PRINT
+=======
+	${GCC} -Wall rdmem.c -o rdmem -DDEBUG_PRINT
+wrmem: wrmem.c ../common.h
+	${GCC} -Wall wrmem.c -o wrmem -DDEBUG_PRINT
+>>>>>>> 40400857c46e51b0ba4cc08bbce32afd933c7117
 
 # Uncomment the rules below for cross-compilation (for ARM-32)
 #rdmem: rdmem.c ../common.h

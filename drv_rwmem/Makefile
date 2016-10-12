@@ -32,8 +32,12 @@ $(info Building with ARCH=${ARCH} and KERNELRELEASE=${KERNELRELEASE})
 
 # Uncomment the -DDEBUG_PRINT directive to actiavte the 'MSG' macro...
 EXTRA_CFLAGS += -g -ggdb -DDEBUG_PRINT #-DUSE_FTRACE_PRINT
+<<<<<<< HEAD
 
 obj-m := devmem_rw.o
 devmem_rw-objs := rwmem.o debugfs_hooks.o
+=======
+obj-m :=    rwmem.o  
+>>>>>>> 40400857c46e51b0ba4cc08bbce32afd933c7117
 
 endif

@@ -18,7 +18,11 @@
 #ifdef __KERNEL__
  #ifdef DEBUG_PRINT
   #define MSG(string, args...) \
+<<<<<<< HEAD
 	pr_notice ("[%s]%s:%d: " string, \
+=======
+	pr_alert ("[%s]%s:%d: " string, \
+>>>>>>> 40400857c46e51b0ba4cc08bbce32afd933c7117
 		DRVNAME, __FUNCTION__, __LINE__, ##args)
   #define QP MSG("\n");
  #else
@@ -27,7 +31,11 @@
  #endif
 #else // userspace
  #ifdef DEBUG_PRINT
+<<<<<<< HEAD
   #define MSG(string, args...) \
+=======
+ #define MSG(string, args...) \
+>>>>>>> 40400857c46e51b0ba4cc08bbce32afd933c7117
 	fprintf (stderr, "[%s]%s:%d: " string, \
 		APPNAME, __FUNCTION__, __LINE__, ##args)
  #else

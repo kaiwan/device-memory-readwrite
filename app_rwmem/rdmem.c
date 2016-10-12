@@ -107,6 +107,7 @@ strtol_err:
 		close(fd);
  		exit(EXIT_FAILURE);
 	}
+<<<<<<< HEAD
 	MSG("1 st_rdm.addr=%p\n", (void *)st_rdm.addr);
 
 	if (is_user_address(st_rdm.addr)) {
@@ -117,6 +118,10 @@ strtol_err:
 			exit(1);
 		}
 	}
+=======
+	orig_addr = st_rdm.addr;
+	MSG("1 st_rdm.addr=0x%p\n", (void *)st_rdm.addr);
+>>>>>>> 40400857c46e51b0ba4cc08bbce32afd933c7117
 
 	/* Length is number of "items" to read of size "date_type" each.
 	   Restrictions:
@@ -153,7 +158,11 @@ strtol_err:
 		exit (1);
 	}
 
+<<<<<<< HEAD
 	MSG ("addr: %p buf=%p len=0x%x flag=%d\n",
+=======
+	MSG ("addr: 0x%p buf=0x%p len=0x%x flag=%d\n",
+>>>>>>> 40400857c46e51b0ba4cc08bbce32afd933c7117
          (void *)st_rdm.addr, st_rdm.buf, (unsigned int)st_rdm.len, st_rdm.flag);
 	if (ioctl (fd, IOCTL_RWMEMDRV_IOCGMEM, &st_rdm) == -1) {
 		perror("ioctl");

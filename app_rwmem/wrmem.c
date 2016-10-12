@@ -74,7 +74,11 @@ value: required parameter:\n\
 		perror("strtoll addr");
  		exit(EXIT_FAILURE);
 	}
+<<<<<<< HEAD
 	MSG ("addr/offset = %p\n", (void *)st_wrm.addr);
+=======
+	MSG ("addr/offset = 0x%p\n", (void *)st_wrm.addr);
+>>>>>>> 40400857c46e51b0ba4cc08bbce32afd933c7117
 
 	errno=0;
 	if (st_wrm.flag == USE_IOBASE)
@@ -87,6 +91,7 @@ value: required parameter:\n\
  		exit(EXIT_FAILURE);
 	}
 
+<<<<<<< HEAD
 	if (is_user_address(st_wrm.addr)) {
 		if (uaddr_valid(st_wrm.addr) == -1) {
 			fprintf(stderr, "%s: the (usermode virtual) address passed (%p) seems to be invalid. Aborting...\n",
@@ -97,6 +102,9 @@ value: required parameter:\n\
 	}
 
 	MSG ("addr: %p val=0x%x\n",
+=======
+	MSG ("addr: 0x%p val=0x%x\n",
+>>>>>>> 40400857c46e51b0ba4cc08bbce32afd933c7117
          (void *)st_wrm.addr, (unsigned int)st_wrm.val);
 	if (ioctl (fd, IOCTL_RWMEMDRV_IOCSMEM, &st_wrm) == -1) {
 		perror("ioctl");
