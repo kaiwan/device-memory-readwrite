@@ -205,8 +205,10 @@ int debugfs_get_page_offset_val(unsigned long long *outval)
 	char *dbgfs_file=malloc(PATH_MAX);
 	char buf[MAX2READ+1];
 
-	if (!debugfs_mnt)
+	if (!debugfs_mnt) {
+		free(dbgfs_file);
 		return -1;
+	}
 	assert(dbgfs_file);
 	snprintf(dbgfs_file, PATH_MAX, "%s/%s/get_page_offset", debugfs_mnt, DRVNAME);
 	MSG("dbgfs_file: %s\n", dbgfs_file);
