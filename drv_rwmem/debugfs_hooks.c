@@ -33,6 +33,7 @@
 	return (pDentry);                                \
 } while (0)
 
+/* Spit out the value of PAGE_OFFSET */
 static ssize_t dbgfs_genread(struct file *filp, char __user *ubuf, size_t count, loff_t *fpos)
 {
 	char kbuf[20];
