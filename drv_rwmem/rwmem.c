@@ -1,7 +1,6 @@
 /*
  * rwmem.c
  *
-<<<<<<< HEAD
  * Part of the DEVMEM-RW opensource project - a simple 
  * utility to read / write [I/O] memory and display it.
  * This is the kernel driver.
@@ -15,16 +14,6 @@
  * License: GPL v2.
  * Author: Kaiwan N Billimoria
  *         kaiwanTECH.
-=======
- * Project home: 
- * https://github.com/kaiwan/device-memory-readwrite
- *
- * Pl see detailed usage Wiki page here:
- * https://github.com/kaiwan/device-memory-readwrite/blob/master/Devmem_HOWTO.pdf
- *
- * License: GPL / LGPL.
- * Author: Kaiwan N Billimoria
->>>>>>> 40400857c46e51b0ba4cc08bbce32afd933c7117
  * kaiwan -at- kaiwantech dot com
  */
 #include <linux/kernel.h>
