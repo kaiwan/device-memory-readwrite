@@ -1,16 +1,16 @@
 /*
  * rwmem.c
  *
- * Part of the DEVMEM-RW opensource project - a simple 
+ * Part of the DEVMEM-RW opensource project - a simple
  * utility to read / write [I/O] memory and display it.
  * This is the kernel driver.
  *
- * Project home: 
+ * Project home:
  * https://github.com/kaiwan/device-memory-readwrite
  *
  * Pl see detailed overview and usage PDF doc here:
  * https://github.com/kaiwan/device-memory-readwrite/blob/master/Devmem_HOWTO.pdf
- * 
+ *
  * License: GPL v2.
  * Author: Kaiwan N Billimoria
  *         kaiwanTECH.
@@ -50,20 +50,26 @@ static DEFINE_MUTEX (mtx);
 //-------------- Module params
 static unsigned long iobase_start=0x0;
 module_param(iobase_start, ulong, 0);
-MODULE_PARM_DESC(iobase_start, "Start (physical) address of IO base memory (typically h/w registers mapped here by the processor)");
+MODULE_PARM_DESC(iobase_start, "Start (physical) address of IO base memory"
+"(typically h/w registers mapped here by the processor)");
 
 static int iobase_len=0;
 module_param(iobase_len, uint, 0);
-MODULE_PARM_DESC(iobase_len, "Length (in bytes) of IO base memory (typically h/w registers mapped here by the processor)");
+MODULE_PARM_DESC(iobase_len,
+"Length (in bytes) of IO base memory (typically h/w registers mapped "
+"here by the processor)");
 
 static int force_rel=0;
 module_param(force_rel, uint, 0);
-MODULE_PARM_DESC(force_rel, "Set to 1 to Force releasing the IO base memory region, even if (esp if) already mapped.\n\
-WARNING! Could be dangerous!");
+MODULE_PARM_DESC(force_rel,
+"Set to 1 to Force releasing the IO base memory \n\
+region, even if (esp if) already mapped.\nWARNING! Could be dangerous!");
 
 static char *reg_name;
 module_param(reg_name, charp, 0);
-MODULE_PARM_DESC(reg_name, "Set to a string describing the IO base memory region being mapped by this driver.");
+MODULE_PARM_DESC(reg_name,
+"Set to a string describing the IO base memory region being mapped by "
+"this driver.");
 
 #if 0
 const int e = 1;
@@ -72,7 +78,7 @@ const int e = 1;
 
 /*
  * Reads and writes can be specified to be an *offset* from the IO base address.
- * In this case, pst_[r|w]dm->flag == 0 and the offset is what arrives from 
+ * In this case, pst_[r|w]dm->flag == 0 and the offset is what arrives from
  * userspace in the pst_[r|w]dm->addr member.
  */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
@@ -91,18 +97,18 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd, u
 		MSG("pid %d: mtx lock interrupted!\n", current->pid);
 		return -ERESTARTSYS;
 	}
-	
+
 	//MSG ("In ioctl method, cmd=%d type=%d\n", _IOC_NR(cmd), _IOC_TYPE(cmd));
 	PRINT_CTX();
 
 	/* Check arguments */
 	if (_IOC_TYPE(cmd) != IOCTL_RWMEMDRV_MAGIC) {
-		printk ("%s: ioctl fail 1\n", DRVNAME);
+		pr_info("%s: ioctl fail 1\n", DRVNAME);
 		mutex_unlock (&mtx);
 		return -ENOTTY;
 	}
 	if (_IOC_NR(cmd) > IOCTL_RWMEMDRV_MAXIOCTL) {
-		printk ("%s: ioctl fail 2\n", DRVNAME);
+		pr_info("%s: ioctl fail 2\n", DRVNAME);
 		mutex_unlock (&mtx);
 		return -ENOTTY;
 	}
@@ -113,7 +119,7 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd, u
 	else if (_IOC_DIR(cmd) & _IOC_WRITE)
 		err = !access_ok (VERIFY_READ, (void __user *)arg, _IOC_SIZE(cmd));
 	if (err) {
-		printk ("%s: ioctl direction check fail!\n", DRVNAME);
+		pr_info("%s: ioctl direction check fail!\n", DRVNAME);
 		mutex_unlock (&mtx);
 		return -EFAULT;
 	}
@@ -121,24 +127,24 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd, u
 	switch (cmd) {
 		case IOCTL_RWMEMDRV_IOCGMEM: /* 'rdmem' */
 			if (!(pst_rdm = kzalloc (sizeof (ST_RDM), GFP_KERNEL))) {
-				printk (KERN_ALERT "%s: out of memory!\n", DRVNAME);
+				pr_alert("%s: out of memory!\n", DRVNAME);
 				retval = -ENOMEM;
 				goto rdm_out_unlock;
 			}
 
 			if (copy_from_user (pst_rdm, (PST_RDM)arg, sizeof (ST_RDM))) {
-				printk (KERN_ALERT "[%s] !WARNING! copy_from_user failed\n", DRVNAME);
+				pr_alert("[%s] !WARNING! copy_from_user failed\n", DRVNAME);
 				retval = -EFAULT;
 				goto rdm_out_kfree_1;
 			}
 
-			MSG ("pst_rdm=%p addr: %p buf=%p len=%d flag=%d\n\n", 
-				(void *)pst_rdm, (void *)pst_rdm->addr, (void *)pst_rdm->buf, 
+			MSG ("pst_rdm=%p addr: %p buf=%p len=%d flag=%d\n\n",
+				(void *)pst_rdm, (void *)pst_rdm->addr, (void *)pst_rdm->buf,
 				pst_rdm->len, pst_rdm->flag);
 
 			kbuf = kmalloc (pst_rdm->len, GFP_KERNEL);
 			if (!kbuf) {
-				printk (KERN_ALERT "%s: out of memory! (kbuf)\n", DRVNAME);
+				pr_alert("%s: out of memory! (kbuf)\n", DRVNAME);
 				retval = -ENOMEM;
 				goto rdm_out_kfree_1;
 			}
@@ -147,7 +153,7 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd, u
 
 			tmpbuf = kmalloc (pst_rdm->len, GFP_KERNEL);
 			if (!tmpbuf) {
-				printk (KERN_ALERT "%s: out of memory! (tmpbuf)\n", DRVNAME);
+				pr_alert("%s: out of memory! (tmpbuf)\n", DRVNAME);
 				retval = -ENOMEM;
 				goto rdm_out_kfree_2;
 			}
@@ -164,13 +170,13 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd, u
 			print_hex_dump_bytes ("", DUMP_PREFIX_OFFSET, tmpbuf, pst_rdm->len);
 #else
 			if (USE_IOBASE == pst_rdm->flag) { // offset relative to iobase address passed
-				MSG ("dest:tmpbuf=0x%p src:(iobase+pst_rdm->addr)=0x%p pst_rdm->len=%d\n", 
+				MSG ("dest:tmpbuf=0x%p src:(iobase+pst_rdm->addr)=0x%p pst_rdm->len=%d\n",
 					tmpbuf, (iobase+pst_rdm->addr), pst_rdm->len);
 				memcpy_fromio (tmpbuf, (iobase+pst_rdm->addr), pst_rdm->len);
 			}
 			else { // absolute (virtual) address passed
 				memcpy_fromio (tmpbuf, (void *)pst_rdm->addr, pst_rdm->len);
-			} 
+			}
 			//print_hex_dump_bytes ("", DUMP_PREFIX_OFFSET, tmpbuf, pst_rdm->len);
 #endif
 			local_irq_restore (flags);
@@ -195,7 +201,7 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd, u
 
 			mb();
 			if (copy_to_user (pst_rdm->buf, kbuf, pst_rdm->len)) {
-				printk (KERN_ALERT "[%s] !WARNING! copy_to_user failed\n", DRVNAME);
+				pr_alert("[%s] !WARNING! copy_to_user failed\n", DRVNAME);
 				retval = -EFAULT;
 				goto rdm_out_kfree_3;
 			}
@@ -220,16 +226,16 @@ rdm_out_unlock:
 			}
 
 			if (!(pst_wrm = kzalloc (sizeof (ST_WRM), GFP_KERNEL))) {
-				printk (KERN_ALERT "%s: out of memory!\n", DRVNAME);
+				pr_alert("%s: out of memory!\n", DRVNAME);
 				retval = -ENOMEM;
 				goto wrm_out_unlock;
 			}
 			if (copy_from_user (pst_wrm, (PST_WRM)arg, sizeof (ST_WRM))) {
-				printk (KERN_ALERT "[%s] !WARNING! copy_from_user failed\n", DRVNAME);
+				pr_alert("[%s] !WARNING! copy_from_user failed\n", DRVNAME);
 				retval = -EFAULT;
 				goto wrm_out_kfree_1;
 			}
-			MSG ("addr/offset: 0x%x val=0x%x\n", 
+			MSG ("addr/offset: 0x%x val=0x%x\n",
 				(unsigned int)pst_wrm->addr, (unsigned int)pst_wrm->val);
 
 			//---------Critical section BEGIN: save & turn off interrupts
@@ -265,9 +271,9 @@ wrm_out_unlock:
 static struct file_operations rwmem_fops = {
 	.llseek        =	no_llseek,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
-	.unlocked_ioctl  = 	rwmem_ioctl,
+	.unlocked_ioctl  =	rwmem_ioctl,
 #else
-	.ioctl  = 	rwmem_ioctl,
+	.ioctl  =	rwmem_ioctl,
 #endif
 };
 
@@ -282,7 +288,7 @@ static int rwmem_open(struct inode * inode, struct file * filp)
 	}
 
 	if (filp->f_op && filp->f_op->open)
-		return filp->f_op->open(inode,filp); 
+		return filp->f_op->open(inode,filp);
 	MSG("opened.\n");
 	return 0;
 }
@@ -313,12 +319,14 @@ static int chardev_registration(void)
 {
     int res=0,i=0;
 
-	res = alloc_chrdev_region(&chardrv_dev_number, RW_MINOR_START, RW_COUNT, DEVICE_FILE);
+	res = alloc_chrdev_region(&chardrv_dev_number, RW_MINOR_START,
+		RW_COUNT, DEVICE_FILE);
 	if (res) {
-		printk(KERN_WARNING "%s: could not allocate device\n", DRVNAME);
+		pr_warn("%s: could not allocate device\n", DRVNAME);
 		return res;
 	} else {
-		printk (KERN_INFO "%s: registered with major number %d\n", DRVNAME, MAJOR(chardrv_dev_number));
+		pr_info("%s: registered with major number %d\n",
+			DRVNAME, MAJOR(chardrv_dev_number));
 	}
 
 	chardrv_devp = kmalloc(RW_COUNT * sizeof(struct chardrv_dev), GFP_KERNEL);
@@ -331,28 +339,30 @@ static int chardev_registration(void)
 		cdev_init (&chardrv_devp[i].cdev, &rwmem_open_fops);
 		chardrv_devp[i].cdev.owner = THIS_MODULE;
 		chardrv_devp[i].cdev.ops = &rwmem_open_fops;
-		res = cdev_add (&chardrv_devp[i].cdev, MKDEV(MAJOR(chardrv_dev_number), MINOR(chardrv_dev_number)+i), 1);
+		res = cdev_add(&chardrv_devp[i].cdev,
+			MKDEV(MAJOR(chardrv_dev_number), MINOR(chardrv_dev_number)+i), 1);
 		if (res) {
-			printk(KERN_NOTICE "%s: Error on cdev_add for %d\n", DRVNAME, res);
+			pr_info("%s: Error on cdev_add for %d\n", DRVNAME, res);
 			return res;
 		} else {
-			printk(KERN_INFO "%s: cdev %s.%d added\n", DRVNAME, DRVNAME, i);
+			pr_info("%s: cdev %s.%d added\n", DRVNAME, DRVNAME, i);
 		}
 	}
 
 	/* Create the devices.
 	 * Note: APIs class_create, device_create, etc exported as EXPORT_SYMBOL_GPL(...); so will not
-  	 * show up unless the module license is GPL.
+	 * show up unless the module license is GPL.
 	 */
 	chardrv_class = class_create (THIS_MODULE, DRVNAME);
 	for ( i = 0 ; i < RW_COUNT; i++) {
-		if (!device_create(chardrv_class, NULL, MKDEV(MAJOR(chardrv_dev_number), 
+		if (!device_create(chardrv_class, NULL, MKDEV(MAJOR(chardrv_dev_number),
 			 MINOR(chardrv_dev_number)+i), NULL, "%s.%d", DRVNAME, i)) {
-			printk(KERN_NOTICE "%s: Error creating device node /dev/%s.%d !\n", DRVNAME, DRVNAME, i);
+			pr_notice("%s: Error creating device node /dev/%s.%d !\n",
+						DRVNAME, DRVNAME, i);
 			return res;
 		}
 		else {
-			printk(KERN_INFO " %s: Device node /dev/%s.%d created.\n", DRVNAME, DRVNAME, i);
+			pr_info(" %s: Device node /dev/%s.%d created.\n", DRVNAME, DRVNAME, i);
 		}
 	}
 	return res;
@@ -378,10 +388,10 @@ static int __init rwmem_init_module(void)
 
 	// If no IO base start address specified, we're done for now
 	if (!iobase_start || !iobase_len) {
-		printk(KERN_WARNING 
-		"%s: Init done. IO base address NOT specified (or len invalid) as module param; so, not performing any ioremap() ...\n", 
+		pr_info(
+		"%s: Init done. IO base address NOT specified (or len invalid) as "
+		"module param; so, not performing any ioremap() ...\n",
 			DRVNAME);
-		//debugfs_remove_recursive(dbgfs_parent);
 		return 0;
 	}
 
@@ -394,19 +404,19 @@ get_region:
 			goto get_region;
 		}
 		debugfs_remove_recursive(dbgfs_parent);
-		printk("%s: Could not get IO resource, aborting...\n", DRVNAME);
+		pr_info("%s: Could not get IO resource, aborting...\n", DRVNAME);
 		return PTR_ERR(iores);
 	}
 
 	iobase = ioremap (iobase_start, iobase_len);
 	if (!iobase) {
-		printk("%s: ioremap failed, aborting...\n", DRVNAME);
+		pr_info("%s: ioremap failed, aborting...\n", DRVNAME);
 		debugfs_remove_recursive(dbgfs_parent);
 		release_mem_region (iobase_start, iobase_len);
 		return PTR_ERR(iobase);
 	}
 	MSG("iobase = %p\n", (void *)iobase);
-	
+
 	return 0;
 }
 
@@ -425,12 +435,13 @@ static void __exit rwmem_cleanup_module(void)
 	/* Char driver unregister */
 	for (i=0; i<RW_COUNT; i++) {
 		cdev_del(&chardrv_devp[i].cdev);
-		device_destroy(chardrv_class, MKDEV(MAJOR(chardrv_dev_number), MINOR(chardrv_dev_number)+i));
+		device_destroy(chardrv_class, MKDEV(MAJOR(chardrv_dev_number),
+						MINOR(chardrv_dev_number)+i));
 	}
 	class_destroy(chardrv_class);
 	kfree(chardrv_devp);
 	unregister_chrdev_region(chardrv_dev_number, RW_COUNT);
-	MSG("Unregistered.\n");
+	pr_info("%s: unregistered.\n", DRVNAME);
 }
 
 module_init(rwmem_init_module);

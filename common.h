@@ -37,7 +37,14 @@
 #endif
 
 #define DEVICE_FILE		"/dev/devmem_rw.0"
-#define POISONVAL		0xea		// "poison value" to init alloced mem to
+
+// "poison value" to init alloced mem to
+#ifdef CONFIG_X86_64
+#define POISONVAL		0xfe
+#else
+#define POISONVAL		0xff
+#endif
+
 #define MIN_LEN 		4
 #define MAX_LEN			128*1024	// 128Kb (arbit)..
 
