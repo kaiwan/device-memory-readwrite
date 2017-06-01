@@ -1,5 +1,4 @@
 # device-memory-readwrite
-[Automatically exported from code.google.com/p/device-memory-readwrite]
 
 Read and/or Write to pretty much _any_ memory location (RAM or H/W IO Memory) on a device.
 
@@ -16,3 +15,5 @@ This could be extremely useful for driver authors, kernel developers, etc who wa
 for prototyping purposes, learning, debug, testing, register lookups/writes and similar purposes.
 
 To get started, please clone the git tree, read the 'Devmem HOWTO.pdf' PDF document, and get to it!
+
+License: MIT
