@@ -109,7 +109,7 @@ strtol_err:
 	}
 	MSG("1 st_rdm.addr=%p\n", (void *)st_rdm.addr);
 
-	if (is_user_address(st_rdm.addr)) {
+	if (st_rdm.flag != USE_IOBASE && is_user_address(st_rdm.addr)) {
 		if (uaddr_valid(st_rdm.addr) == -1) {
 			fprintf(stderr, "%s: the (usermode virtual) address passed (%p) seems to be invalid. Aborting...\n",
 				argv[0], (void *)st_rdm.addr);
