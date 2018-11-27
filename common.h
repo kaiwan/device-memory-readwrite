@@ -127,17 +127,17 @@ typedef struct _ST_WRM {
 	);                                                                                   \
 } while (0)
 #else				// using ftrace trace_prink() internally
-#define PRINT_CTX() do {                                                                   \
-	MSG("PRINT_CTX:: [cpu %02d]%s:%d\n", smp_processor_id(), __func__, current->pid); \
-	if (!in_interrupt()) {                                                                 \
-  		MSG(" in process context:%c%s%c:%d\n",                                        \
-		    (!current->mm?'[':' '), current->comm, (!current->mm?']':' '), current->pid);  \
-	} else {                                                                               \
-        MSG(" in interrupt context: in_interrupt:%3s. in_irq:%3s. in_softirq:%3s. "   \
-		"in_serving_softirq:%3s. preempt_count=0x%x\n",                                    \
-          (in_interrupt()?"yes":"no"), (in_irq()?"yes":"no"), (in_softirq()?"yes":"no"),   \
-          (in_serving_softirq()?"yes":"no"), (preempt_count() && 0xff));                   \
-	}                                                                                      \
+#define PRINT_CTX() do {                                                                          \
+	MSG("PRINT_CTX:: [cpu %02d]%s:%d\n", smp_processor_id(), __func__, current->pid);         \
+	if (!in_interrupt()) {                                                                    \
+  		MSG(" in process context:%c%s%c:%d\n",                                            \
+		    (!current->mm?'[':' '), current->comm, (!current->mm?']':' '), current->pid); \
+	} else {                                                                                  \
+        MSG(" in interrupt context: in_interrupt:%3s. in_irq:%3s. in_softirq:%3s. "               \
+		"in_serving_softirq:%3s. preempt_count=0x%x\n",                                   \
+          (in_interrupt()?"yes":"no"), (in_irq()?"yes":"no"), (in_softirq()?"yes":"no"),          \
+          (in_serving_softirq()?"yes":"no"), (preempt_count() && 0xff));                          \
+	}                                                                                         \
 } while (0)
 #endif
 #endif
