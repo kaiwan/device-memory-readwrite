@@ -49,7 +49,6 @@ int main(int argc, char **argv)
 {
 	int fd;
 	ST_RDM st_rdm;
-	unsigned long orig_addr=0;
 
 	if (0 != geteuid()) {
 		fprintf (stderr, "%s: This app requires root access.\n", argv[0]);
@@ -71,11 +70,6 @@ int main(int argc, char **argv)
 		usage (argv[0]);
 		exit (1);
 	}
-
-#if 0
-printf("PID %d. [Enter] to cont...", getpid());
-getc(stdin);
-#endif
 
 	// Init the rdm structure
 	memset(&st_rdm, 0, sizeof (ST_RDM));
@@ -107,7 +101,8 @@ strtol_err:
 		close(fd);
  		exit(EXIT_FAILURE);
 	}
-	MSG("1 st_rdm.addr=%p\n", (void *)st_rdm.addr);
+	MSG("1 offset? %s; st_rdm.addr=%p\n",
+	    (st_rdm.flag == USE_IOBASE ? "yes" : "no"), (void *)st_rdm.addr);
 
 	if (st_rdm.flag != USE_IOBASE && is_user_address(st_rdm.addr)) {
 		if (uaddr_valid(st_rdm.addr) == -1) {
@@ -117,8 +112,8 @@ strtol_err:
 			exit(1);
 		}
 	}
-	orig_addr = st_rdm.addr;
-	MSG("1 st_rdm.addr=0x%p\n", (void *)st_rdm.addr);
+	MSG("2 offset? %s; st_rdm.addr=%p\n",
+	    (st_rdm.flag == USE_IOBASE ? "yes" : "no"), (void *)st_rdm.addr);
 
 	/* Length is number of "items" to read of size "date_type" each.
 	   Restrictions:
@@ -163,12 +158,6 @@ strtol_err:
 		close (fd);
 		exit (1);
 	}
-#if 0
-	for (i=0; i<st_rdm.len; i++)
-		printf ("[0x%08x] 0x%02x\n", (unsigned int)&st_rdm.buf[i], (unsigned int)st_rdm.buf[i]);
-	MSG ("\naddr: 0x%x buf=0x%x len=0x%x data_type=%d\n",
-         (unsigned int)orig_addr, (unsigned int)st_rdm.buf, st_rdm.len, data_type);
-#endif
 
 	//void hex_dump(char *data, int size, char *caption, int verbose)
 	hex_dump(st_rdm.buf, st_rdm.len, "MemDump", 0);
