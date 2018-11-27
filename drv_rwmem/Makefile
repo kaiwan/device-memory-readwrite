@@ -28,10 +28,10 @@ clean:
 
 else
 
-$(info Building with ARCH=${ARCH} and KERNELRELEASE=${KERNELRELEASE})
-
 # Uncomment the -DDEBUG_PRINT directive to actiavte the 'MSG' macro...
 EXTRA_CFLAGS += -g -ggdb -DDEBUG_PRINT #-DUSE_FTRACE_PRINT
+
+$(info Building\: ARCH=${ARCH}, CROSS_COMPILE=${CROSS_COMPILE}, KERNELRELEASE=${KERNELRELEASE} and EXTRA_CFLAGS=${EXTRA_CFLAGS})
 
 obj-m := devmem_rw.o
 devmem_rw-objs := rwmem.o debugfs_hooks.o
