@@ -280,7 +280,7 @@ void hex_dump(unsigned char *data, int size, char *caption, int verbose)
 {
 	int i; // index in data...
 	int j; // index in line...
-	char temp[8];
+	char temp[10];
 	char buffer[128];
 	char *ascii;
 
