@@ -88,13 +88,13 @@ int main(int argc, char **argv)
 	}
 
 	if ((errno == ERANGE
-	     && (st_rdm.addr == ULONG_MAX || st_rdm.addr == LLONG_MIN))
+	     && (st_rdm.addr == ULONG_MAX || (long long int)st_rdm.addr == LLONG_MIN))
 	    || (errno != 0 && st_rdm.addr == 0)) {
  strtol_err:
 		perror("strtoll");
 		if (st_rdm.addr == ULONG_MAX)
 			printf("Ulong max\n");
-		if (st_rdm.addr == LLONG_MIN)
+		if ((long long int)st_rdm.addr == LLONG_MIN)
 			printf("long min\n");
 		close(fd);
 		exit(EXIT_FAILURE);
@@ -128,7 +128,7 @@ int main(int argc, char **argv)
 		st_rdm.len = strtol(argv[3], 0, 16);
 	}
 	if ((errno == ERANGE
-	     && (st_rdm.addr == ULONG_MAX || st_rdm.addr == LLONG_MIN))
+	     && (st_rdm.addr == ULONG_MAX || (long long int)st_rdm.addr == LLONG_MIN))
 	    || (errno != 0 && st_rdm.addr == 0))
 		goto strtol_err;
 
