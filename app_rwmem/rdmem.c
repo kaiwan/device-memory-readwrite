@@ -15,6 +15,7 @@
  * Author: Kaiwan N Billimoria
  *         kaiwanTECH.
  */
+#include "../common.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -25,7 +26,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
-#include "../common.h"
 
 static void usage(char *name)
 {

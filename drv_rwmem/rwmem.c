@@ -179,7 +179,8 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 				     pst_rdm->len);
 #else
 		if (USE_IOBASE == pst_rdm->flag) {	// offset relative to iobase address passed
-			MSG("dest:tmpbuf=%p src:(iobase+pst_rdm->addr)=%p pst_rdm->len=%d\n", tmpbuf, (iobase + pst_rdm->addr), pst_rdm->len);
+			MSG("dest:tmpbuf=%p src:(iobase+pst_rdm->addr)=%p pst_rdm->len=%d\n",
+				tmpbuf, (iobase + pst_rdm->addr), pst_rdm->len);
 			memcpy_fromio(tmpbuf, (iobase + pst_rdm->addr),
 				      pst_rdm->len);
 		} else {	// absolute (virtual) address passed
@@ -399,7 +400,6 @@ static int __init rwmem_init_module(void)
 		res = PTR_ERR(dbgfs_parent);
 		return res;
 	}
-	//    MSG("dbgfs_parent=%p\n", dbgfs_parent);
 
 	// If no IO base start address specified, we're done for now
 	if (!iobase_start || !iobase_len) {

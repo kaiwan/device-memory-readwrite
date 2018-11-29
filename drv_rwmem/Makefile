@@ -3,11 +3,11 @@ ifeq ($(KERNELRELEASE),)
 #########################################
 # To support cross-compiling for the ARM:
 # For ARM, invoke make as:
-# make ARCH=arm CROSS_COMPILE=arm-none-linux-gnueabi- 
-# (or whatever CROSS_COMPILE should be...)
+# make ARCH=arm CROSS_COMPILE=<cross-compile-prefix>
+#  Eg. make ARCH=arm CROSS_COMPILE=arm-linux-gnueabi-
 ifeq ($(ARCH),arm)
    # *UPDATE* 'KDIR' below to point to the ARM Linux kernel source tree
-   KDIR ?= ~/3.18.22-arm-tags
+   KDIR ?= ~/big/scratchpad/SEALS_staging/SEALS_staging_vexpress/linux-4.14.52/
    #KDIR ?= ~/DG-L3/RPi/kernel_RPi/linux-3.6.11-rpi
    #KDIR ?= ~/DG-L3/pandaboard/custom/kernel/linux-3.1.5
 else
