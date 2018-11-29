@@ -16,24 +16,24 @@
 #define	DRVNAME		"devmem_rw"
 
 #ifdef __KERNEL__
- #ifdef DEBUG_PRINT
-  #define MSG(string, args...) \
-	pr_alert ("[%s]%s:%d: " string, \
+#ifdef DEBUG_PRINT
+#define MSG(string, args...)				\
+	pr_info("[%s]%s:%d: " string,			\
 		DRVNAME, __FUNCTION__, __LINE__, ##args)
-  #define QP MSG("\n");
- #else
-  #define MSG(string, args...)
-  #define QP
- #endif
-#else // userspace
- #ifdef DEBUG_PRINT
- #define MSG(string, args...) \
-	fprintf (stderr, "[%s]%s:%d: " string, \
+#define QP MSG("\n");
+#else
+#define MSG(string, args...)
+#define QP
+#endif
+#else				// userspace
+#ifdef DEBUG_PRINT
+#define MSG(string, args...) \
+	fprintf (stderr, "[%s]%s:%d: " string,		\
 		APPNAME, __FUNCTION__, __LINE__, ##args)
- #else
-  #define MSG(string, args...)
-  #define QP
- #endif
+#else
+#define MSG(string, args...)
+#define QP
+#endif
 #endif
 
 #define DEVICE_FILE		"/dev/devmem_rw.0"
@@ -46,7 +46,7 @@
 #endif
 
 #define MIN_LEN 		4
-#define MAX_LEN			128*1024	// 128Kb (arbit)..
+#define MAX_LEN			128*1024 // 128Kb (arbit)..
 
 #define RW_MINOR_START     0
 #define RW_COUNT           1
@@ -58,7 +58,7 @@
 #define IOCTL_RWMEMDRV_IOCSMEM		_IOR(IOCTL_RWMEMDRV_MAGIC, 2, int)
 #define	IOCTL_RWMEMDRV_MAXIOCTL		2
 
-#define USE_IOBASE	1 	// for 'flag'
+#define USE_IOBASE	1	// for 'flag'
 typedef struct _ST_RDM {
 	volatile unsigned long addr;
 	unsigned char *buf;
@@ -71,8 +71,6 @@ typedef struct _ST_WRM {
 	unsigned long val;
 	int flag;
 } ST_WRM, *PST_WRM;
-
-
 
 #ifdef __KERNEL__
 /*------------------------ PRINT_CTX ---------------------------------*/
@@ -146,6 +144,15 @@ typedef struct _ST_WRM {
 #include <assert.h>
 /*------------------Functions---------------------------------*/
 
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <limits.h>
+
 // Ref: http://stackoverflow.com/questions/7134590/how-to-test-if-an-address-is-readable-in-linux-userspace-app
 int uaddr_valid(volatile unsigned long addr)
 {
@@ -153,7 +160,7 @@ int uaddr_valid(volatile unsigned long addr)
 
 	if (pipe(fd) == -1) {
 		perror("pipe");
-		exit(1);
+		return -1;
 	}
 	if (write(fd[1], (void *)addr, sizeof(unsigned long)) == -1) {
 		//printf("errno=%d\n", errno);
@@ -168,30 +175,29 @@ int uaddr_valid(volatile unsigned long addr)
 }
 
 #include <mntent.h>
-char * find_debugfs_mountpt(void)
+char *find_debugfs_mountpt(void)
 {
-  /* Ref:
-   * http://stackoverflow.com/questions/9280759/linux-function-to-get-mount-points
-   */
-  struct mntent *ent;
-  FILE *fp;
-  char *ret=NULL;
+	/* Ref:
+	 * http://stackoverflow.com/questions/9280759/linux-function-to-get-mount-points
+	 */
+	struct mntent *ent;
+	FILE *fp;
+	char *ret = NULL;
 
-  fp = setmntent("/proc/mounts", "r");
-  if (NULL == fp) {
-    perror("setmntent");
-    exit(1);
-  }
-  while (NULL != (ent = getmntent(fp))) {
-	char *s1=ent->mnt_fsname;
-    //printf("%s %s\n", s1, ent->mnt_dir);
-	if (0 == strncmp(s1, "debugfs", 7)) {
-		ret = ent->mnt_dir;
-		break;
-	}		
-  }
-  endmntent(fp);
-  return ret;
+	fp = setmntent("/proc/mounts", "r");
+	if (NULL == fp) {
+		perror("setmntent");
+		exit(1);
+	}
+	while (NULL != (ent = getmntent(fp))) {
+		char *s1 = ent->mnt_fsname;
+		if (0 == strncmp(s1, "debugfs", 7)) {
+			ret = ent->mnt_dir;
+			break;
+		}
+	}
+	endmntent(fp);
+	return ret;
 }
 
 /*
@@ -207,17 +213,20 @@ char * find_debugfs_mountpt(void)
  */
 int debugfs_get_page_offset_val(unsigned long long *outval)
 {
-	int fd, MAX2READ=16;
-	char * debugfs_mnt = find_debugfs_mountpt();
-	char *dbgfs_file=malloc(PATH_MAX);
-	char buf[MAX2READ+1];
+	int fd, MAX2READ = 16;
+	char *debugfs_mnt = find_debugfs_mountpt();
+	char *dbgfs_file = malloc(PATH_MAX);
+	char buf[MAX2READ + 1];
 
 	if (!debugfs_mnt) {
+		fprintf(stderr, "%s: fetching debugfs mount point failed, aborting...",
+			__func__);
 		free(dbgfs_file);
 		return -1;
 	}
 	assert(dbgfs_file);
-	snprintf(dbgfs_file, PATH_MAX, "%s/%s/get_page_offset", debugfs_mnt, DRVNAME);
+	snprintf(dbgfs_file, PATH_MAX, "%s/%s/get_page_offset", debugfs_mnt,
+		 DRVNAME);
 	MSG("dbgfs_file: %s\n", dbgfs_file);
 
 	if ((fd = open(dbgfs_file, O_RDONLY)) == -1) {
@@ -225,7 +234,7 @@ int debugfs_get_page_offset_val(unsigned long long *outval)
 		free(dbgfs_file);
 		return -1;
 	}
-	memset(buf, 0, MAX2READ+1);
+	memset(buf, 0, MAX2READ + 1);
 	if (read(fd, buf, MAX2READ) == -1) {
 		perror("rdmem: read dbgfs_file");
 		close(fd);
@@ -234,13 +243,12 @@ int debugfs_get_page_offset_val(unsigned long long *outval)
 	}
 	close(fd);
 
-	*outval = strtoull (buf, 0, 16);
+	*outval = strtoull(buf, 0, 16);
 
 	free(dbgfs_file);
 	return 0;
 }
 
-//#define PLATFORM_PAGE_OFFSET 0xffff880000000000  // x86_64
 int is_user_address(volatile unsigned long addr)
 {
 	unsigned long long page_offset;
@@ -278,8 +286,8 @@ Added a 'verbose' parameter..(kaiwan).
 */
 void hex_dump(unsigned char *data, int size, char *caption, int verbose)
 {
-	int i; // index in data...
-	int j; // index in line...
+	int i;			// index in data...
+	int j;			// index in line...
 	char temp[10];
 	char buffer[128];
 	char *ascii;
@@ -287,10 +295,12 @@ void hex_dump(unsigned char *data, int size, char *caption, int verbose)
 	memset(buffer, 0, 128);
 
 	if (verbose && caption)
-		printf("---------> %s <--------- (%d bytes from %p)\n", caption, size, data);
+		printf("---------> %s <--------- (%d bytes from %p)\n", caption,
+		       size, data);
 
 	// Printing the ruler...
-	printf("        +0          +4          +8          +c            0   4   8   c   \n");
+	printf
+	    ("        +0          +4          +8          +c            0   4   8   c   \n");
 
 	// Hex portion of the line is 8 (the padding) + 3 * 16 = 52 chars long
 	// We add another four bytes padding and place the ASCII version...
@@ -303,10 +313,8 @@ void hex_dump(unsigned char *data, int size, char *caption, int verbose)
 	buffer[2] = '0';
 	buffer[3] = '0';
 	buffer[4] = '0';
-	for (i = 0, j = 0; i < size; i++, j++)
-	{
-		if (j == 16)
-		{
+	for (i = 0, j = 0; i < size; i++, j++) {
+		if (j == 16) {
 			printf("%s", buffer);
 			memset(buffer, ' ', 58 + 16);
 
