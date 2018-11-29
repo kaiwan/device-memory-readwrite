@@ -34,32 +34,31 @@ int main(int argc, char **argv)
 
 	if (syscheck() == -1) {
 		fprintf(stderr, "%s: System check failed, aborting..\n"
+			"(As of now, this implies you do not have udev support\n"
 			"This project requires the kernel and userspace to support udev).\n",
-			"(As of now, this implies you do not have udev support)\n",
 			argv[0]);
 		exit(1);
 	}
-
 	if (0 != geteuid()) {
 		fprintf(stderr, "%s: This app requires root access.\n",
 			argv[0]);
 		exit(1);
 	}
-
 	if (argc < 3) {
-		fprintf(stderr, "\
-Usage: %s [-o] <address/offset> <value>\n\
-[-o]: optional parameter:\n\
- : '-o' present implies the next parameter is an OFFSET and NOT an absolute address [HEX]\n\
- (this is the typical usage for writing to hardware registers that are offset from an IO base..)\n\
- : absence of '-o' implies that the next parameter is an ADDRESS [HEX]\n\
-offset -or- address : required parameter:\n\
- memory offset or address to write to (HEX).\n\
-\n\
-value: required parameter:\n\
- data to write to above address/offset (4 bytes) (HEX).\n", argv[0]);
+		fprintf(stderr,
+"Usage: %s [-o] <address/offset> <value>\n"
+"[-o]: optional parameter:\n"
+" : '-o' present implies the next parameter is an OFFSET and NOT an absolute address [HEX]\n"
+" (this is the typical usage for writing to hardware registers that are offset from an IO base..)\n"
+" : absence of '-o' implies that the next parameter is an ADDRESS [HEX]\n"
+"offset -or- address : required parameter:\n"
+" memory offset or address to write to (HEX).\n"
+"\n"
+"value: required parameter:\n"
+" data to write to above address/offset (4 bytes) (HEX).\n", argv[0]);
 		exit(1);
 	}
+
 	// Init the wrm structure
 	memset(&st_wrm, 0, sizeof(ST_WRM));
 
@@ -78,7 +77,7 @@ value: required parameter:\n\
 		st_wrm.addr = strtoull(argv[1], 0, 16);
 	}
 	if ((errno == ERANGE
-	     && (st_wrm.addr == ULONG_MAX || st_wrm.addr == LLONG_MIN))
+	     && (st_wrm.addr == ULONG_MAX || (long long)st_wrm.addr == LLONG_MIN))
 	    || (errno != 0 && st_wrm.addr == 0)) {
 		perror("strtoll addr");
 		exit(EXIT_FAILURE);
@@ -91,7 +90,7 @@ value: required parameter:\n\
 	else
 		st_wrm.val = strtoll(argv[2], 0, 16);
 	if ((errno == ERANGE
-	     && (st_wrm.val == ULONG_MAX || st_wrm.val == LLONG_MIN))
+	     && (st_wrm.val == ULONG_MAX || (long long)st_wrm.val == LLONG_MIN))
 	    || (errno != 0 && st_wrm.val == 0)) {
 		perror("strtoll val");
 		exit(EXIT_FAILURE);

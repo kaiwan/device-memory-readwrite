@@ -314,7 +314,7 @@ int debugfs_get_page_offset_val(unsigned long long *outval)
 	MSG("dbgfs_file: %s\n", dbgfs_file);
 
 	if ((fd = open(dbgfs_file, O_RDONLY)) == -1) {
-		perror("rdmem: open dbgfs_file");
+		WARN("rdmem: open dbgfs_file");
 		free(dbgfs_file);
 		return -1;
 	}
