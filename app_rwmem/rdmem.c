@@ -47,21 +47,25 @@ int main(int argc, char **argv)
 	int fd;
 	ST_RDM st_rdm;
 
+	if (syscheck() == -1) {
+		fprintf(stderr, "%s: System check failed, aborting..\n"
+			"(As of now, this implies you do not have udev support\n"
+			"This project requires the kernel and userspace to support udev).\n",
+			argv[0]);
+		exit(1);
+	}
+
 	if (0 != geteuid()) {
 		fprintf(stderr, "%s: This app requires root access.\n",
 			argv[0]);
 		exit(1);
 	}
-	if (syscheck() == -1) {
-		fprintf(stderr, "%s: System check failed, aborting..\n"
-			"(As of now, this implies you do not have udev support)\n",
-			argv[0]);
-		exit(1);
-	}
+
 	if (argc < 2) {
 		usage(argv[0]);
 		exit(1);
 	}
+
 // TODO- clean up the bloody mess with args processing!
 	if ((!strncmp(argv[1], "-o", 2)) && argc == 2) {	// address specified as an Offset
 		fprintf(stderr,

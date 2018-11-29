@@ -32,6 +32,14 @@ int main(int argc, char **argv)
 	int fd;
 	ST_WRM st_wrm;
 
+	if (syscheck() == -1) {
+		fprintf(stderr, "%s: System check failed, aborting..\n"
+			"This project requires the kernel and userspace to support udev).\n",
+			"(As of now, this implies you do not have udev support)\n",
+			argv[0]);
+		exit(1);
+	}
+
 	if (0 != geteuid()) {
 		fprintf(stderr, "%s: This app requires root access.\n",
 			argv[0]);
