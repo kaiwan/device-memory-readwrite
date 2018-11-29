@@ -12,6 +12,10 @@
 #ifndef _RDWR_MEM_COMMON
 #define _RDWR_MEM_COMMON
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #define APPNAME		"rdm_wrm_app"
 #define	DRVNAME		"devmem_rw"
 
@@ -144,14 +148,53 @@ typedef struct _ST_WRM {
 #include <assert.h>
 /*------------------Functions---------------------------------*/
 
+#define NON_FATAL    0
+
+#define WARN(warnmsg, args...) do {                           \
+	handle_err(NON_FATAL, "!WARNING! %s:%s:%d: " warnmsg, \
+	   __FILE__, __FUNCTION__, __LINE__, ##args);         \
+} while(0)
+#define FATAL(errmsg, args...) do {                           \
+	handle_err(EXIT_FAILURE, "FATAL:%s:%s:%d: " errmsg,   \
+	   __FILE__, __FUNCTION__, __LINE__, ##args);         \
+} while(0)
+
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <errno.h>
+
+int handle_err(int fatal, const char *fmt, ...)
+{
+#define ERRSTRMAX 512
+	char *err_str;
+	va_list argp;
+
+	err_str = malloc(ERRSTRMAX);
+	if (err_str == NULL)
+		return -1;
+
+	va_start(argp, fmt);
+	vsnprintf(err_str, ERRSTRMAX-1, fmt, argp);
+	va_end(argp);
+
+	fprintf(stderr, "%s", err_str);
+	if (errno) {
+		fprintf(stderr, "  ");
+		perror("kernel says");
+	}
+
+	free(err_str);
+	if (!fatal)
+		return 0;
+	exit(fatal);
+}
 
 // Ref: http://stackoverflow.com/questions/7134590/how-to-test-if-an-address-is-readable-in-linux-userspace-app
 int uaddr_valid(volatile unsigned long addr)
