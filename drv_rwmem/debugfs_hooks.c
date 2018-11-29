@@ -41,7 +41,7 @@ static ssize_t dbgfs_genread(struct file *filp, char __user * ubuf,
 	char kbuf[20];
 
 	snprintf(kbuf, 18, "%16lx", PAGE_OFFSET);
-	// MSG("kbuf: %s\n", kbuf);
+	MSG("kbuf: %s\n", kbuf);
 
 	/* simple_read_from_buffer - copy data from the buffer to user space:
 	 * @to: the user space buffer to read to
@@ -78,12 +78,11 @@ struct dentry *setup_debugfs_entries(void)
 
 	/* Generic debugfs file.
 	   4th param is a generic void * ptr; here we're not passing anything..
-
 	   The idea: to let the apps (rdmem|wrmem) read kernel variables that
 	   aren't exposed via procfs. Like PAGE_OFFSET.
 	 */
 	if (!debugfs_create_file
-	    ("get_page_offset", 0440, parent, NULL, &dbg_fops)) {
+	    ("get_page_offset", 0444, parent, NULL, &dbg_fops)) {
 		DBGFS_CREATE_ERR(parent, "debugfs_create_file");
 	}
 	MSG("debugfs hooks created\n");
