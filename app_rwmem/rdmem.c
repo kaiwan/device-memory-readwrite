@@ -52,7 +52,12 @@ int main(int argc, char **argv)
 			argv[0]);
 		exit(1);
 	}
-
+	if (syscheck() == -1) {
+		fprintf(stderr, "%s: System check failed, aborting..\n"
+			"(As of now, this implies you do not have udev support)\n",
+			argv[0]);
+		exit(1);
+	}
 	if (argc < 2) {
 		usage(argv[0]);
 		exit(1);

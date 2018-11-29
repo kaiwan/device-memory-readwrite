@@ -196,6 +196,34 @@ int handle_err(int fatal, const char *fmt, ...)
 	exit(fatal);
 }
 
+int syscheck(void)
+{
+	FILE *fp;
+#define SZ  128
+	char res[SZ];
+
+	/* BUG #20181128.2
+	Require dynamic device node kernel support. (Bug- Else the /dev/rwmem.0
+	device file does not get created). Simple way... execute the command
+	'ps -e|grep udev'; if it succeeds, udev support is available, else not.
+	*/
+	
+	memset(res, 0, SZ);
+	fp = popen("ps -e|grep udev", "r");
+	if (!fp) {
+		WARN("popen failed\n");
+		return -1;
+	}
+	if (!fgets(res, SZ-1, fp)) {
+		pclose(fp);
+		return -1;
+	}
+	pclose(fp);
+	if (!strstr(res, "udev"))
+		return -1;
+	return 0;
+}
+
 // Ref: http://stackoverflow.com/questions/7134590/how-to-test-if-an-address-is-readable-in-linux-userspace-app
 int uaddr_valid(volatile unsigned long addr)
 {
