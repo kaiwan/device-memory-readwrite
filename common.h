@@ -205,9 +205,8 @@ int syscheck(void)
 	/* BUG #20181128.2
 	Require dynamic device node kernel support. (Bug- Else the /dev/rwmem.0
 	device file does not get created). Simple way... execute the command
-	'ps -e|grep udev'; if it succeeds, udev support is available, else not.
+	'ps -e|grep udevd'; if it succeeds, udev support is available, else not.
 	*/
-	
 	memset(res, 0, SZ);
 	fp = popen("ps -e|grep udev", "r");
 	if (!fp) {
@@ -215,12 +214,26 @@ int syscheck(void)
 		return -1;
 	}
 	if (!fgets(res, SZ-1, fp)) {
+		WARN("fgets failed\n");
 		pclose(fp);
 		return -1;
 	}
 	pclose(fp);
-	if (!strstr(res, "udev"))
+	//MSG("res = %s\n", res);
+
+	if (res[0] == '\0')
 		return -1;
+
+	/* On a busybox based ps (or even other), the 'res' variable may contain:
+	   "   816 0         0:00 sh -c ps -e|grep udev"
+	   So, we check for this "grep udev" wrong case as well... Bah.
+	   IOW, for success, the 'res' string should contain 'udev', or
+	   something like 'systemd-udevd' and NOT contain 'grep udev'.
+	 */
+	if (strstr(res, "udevd")) {
+		if (strstr(res, "grep udev"))
+			return -1;
+	}
 	return 0;
 }
 
