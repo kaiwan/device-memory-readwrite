@@ -13,10 +13,15 @@ rdmem: rdmem.c ../common.h
 	${GCC} ${CFLAGS} rdmem.c -o rdmem
 rdmem_dbg: rdmem.c ../common.h
 	${GCC} ${CFLAGS_DBG} rdmem.c -o rdmem_dbg
+rdmem_dbg_static: rdmem.c ../common.h
+	${GCC} ${CFLAGS_DBG} rdmem.c -o rdmem_dbg_static -static
+
 wrmem: wrmem.c ../common.h
 	${GCC} ${CFLAGS} wrmem.c -o wrmem
 wrmem_dbg: wrmem.c ../common.h
 	${GCC} ${CFLAGS_DBG} wrmem.c -o wrmem_dbg
+wrmem_dbg_static: wrmem.c ../common.h
+	${GCC} ${CFLAGS_DBG} wrmem.c -o wrmem_dbg_static -static
 
 clean:
 	rm -fv *.o ${ALL} *~
