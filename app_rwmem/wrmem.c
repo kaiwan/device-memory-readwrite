@@ -11,9 +11,8 @@
  * Pl see detailed overview and usage PDF doc here:
  * https://github.com/kaiwan/device-memory-readwrite/blob/master/Devmem_HOWTO.pdf
  * 
- * License: GPL v2.
- * Author: Kaiwan N Billimoria
- *         kaiwanTECH.
+ * License: Dual MIT/GPL
+ * Author: (c) Kaiwan N Billimoria, kaiwanTECH
  */
 #include <stdio.h>
 #include <stdlib.h>

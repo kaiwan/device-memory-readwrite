@@ -39,7 +39,10 @@ offset -or- address : required parameter:\n\
  start offset or address to read memory from (HEX).\n\
 \n\
 len: optional parameter:\n\
- length : number of items to read. Default = 4 bytes (HEX)\n" " Restrictions: length must be in the range [%d-%d] and\n" " a power of 2 (if not, it will be auto rounded-up to the next ^2).\n", name, MIN_LEN, MAX_LEN);
+ length : number of items to read. Default = 4 bytes (HEX)\n"
+ " Restrictions: length must be in the range [%d-%d] and\n"
+ " a power of 2 (if not, it will be auto rounded-up to the next ^2).\n",
+	name, MIN_LEN, MAX_LEN);
 }
 
 int main(int argc, char **argv)
@@ -109,13 +112,16 @@ int main(int argc, char **argv)
 	MSG("1 offset? %s; st_rdm.addr=%p\n",
 	    (st_rdm.flag == USE_IOBASE ? "yes" : "no"), (void *)st_rdm.addr);
 
-	if (st_rdm.flag != USE_IOBASE && is_user_address(st_rdm.addr)) {
-		if (uaddr_valid(st_rdm.addr) == -1) {
-			fprintf(stderr,
+	if (st_rdm.flag != USE_IOBASE) {
+		// if it's a userspace addr, check it's validity, else we simply assume it's a valid kernel va
+		if (is_user_address(st_rdm.addr)) {
+			if (uaddr_valid(st_rdm.addr) == -1) {
+				fprintf(stderr,
 				"%s: the (usermode virtual) address passed (%p) seems to be invalid. Aborting...\n",
 				argv[0], (void *)st_rdm.addr);
-			close(fd);
-			exit(1);
+				close(fd);
+				exit(1);
+			}
 		}
 	}
 	MSG("2 offset? %s; st_rdm.addr=%p\n",
