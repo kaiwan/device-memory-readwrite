@@ -144,9 +144,9 @@ typedef struct _ST_WRM {
 #endif
 #endif
 
+/*------------------ Usermode functions--------------------------------*/
 #ifndef __KERNEL__
 #include <assert.h>
-/*------------------Functions---------------------------------*/
 
 #define NON_FATAL    0
 
@@ -242,9 +242,14 @@ int uaddr_valid(volatile unsigned long addr)
 {
 	int fd[2];
 
+#if 0
+	// RELOOK : doesn't work on 64-bit??
+	if (sizeof(void *) == 8) // 64-bit system
+		return -3;
+#endif
 	if (pipe(fd) == -1) {
 		perror("pipe");
-		return -1;
+		return -2;
 	}
 	if (write(fd[1], (void *)addr, sizeof(unsigned long)) == -1) {
 		//printf("errno=%d\n", errno);
@@ -327,6 +332,12 @@ int debugfs_get_page_offset_val(unsigned long long *outval)
 	}
 	close(fd);
 
+	if (!strncmp(buf, "-unknown-", 9)) {
+		fprintf(stderr, "%s: fetching page offset from debugfs failed, aborting...",
+			__func__);
+		free(dbgfs_file);
+		return -1;
+	}
 	*outval = strtoull(buf, 0, 16);
 
 	free(dbgfs_file);
@@ -338,7 +349,7 @@ int is_user_address(volatile unsigned long addr)
 	unsigned long long page_offset;
 	int stat = debugfs_get_page_offset_val(&page_offset);
 	assert(stat >= 0);
-	//MSG("page_offset = 0x%16llx\n", page_offset);
+	MSG("page_offset = 0x%16llx\n", page_offset);
 
 	if (addr < page_offset)
 		return 1;

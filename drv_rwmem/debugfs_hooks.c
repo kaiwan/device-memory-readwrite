@@ -40,7 +40,11 @@ static ssize_t dbgfs_genread(struct file *filp, char __user * ubuf,
 {
 	char kbuf[20];
 
+#ifdef PAGE_OFFSET
 	snprintf(kbuf, 18, "%16lx", PAGE_OFFSET);
+#else
+	snprintf(kbuf, 10, "-unknown-");
+#endif
 	MSG("kbuf: %s\n", kbuf);
 
 	/* simple_read_from_buffer - copy data from the buffer to user space:

@@ -31,9 +31,15 @@
 #include <linux/mutex.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/uaccess.h>
-#include <linux/version.h>
 #include <linux/vmalloc.h>
+
+// copy_[to|from]_user()
+#include <linux/version.h>
+#if LINUX_VERSION_CODE > KERNEL_VERSION(4,11,0)
+#include <linux/uaccess.h>
+#else
+#include <asm/uaccess.h>
+#endif
 
 struct dentry *setup_debugfs_entries(void);
 
@@ -69,26 +75,21 @@ static char *reg_name;
 module_param(reg_name, charp, 0);
 MODULE_PARM_DESC(reg_name,
 		 "Set to a string describing the IO base memory region being mapped by "
-		 "this driver.");
-
-#if 0
-const int e = 1;
-#define is_bigendian() ((*(char *)&e) == 0)
-#endif
+		 "this driver");
 
 /*
  * Reads and writes can be specified to be an *offset* from the IO base address.
  * In this case, pst_[r|w]dm->flag == 0 and the offset is what arrives from
  * userspace in the pst_[r|w]dm->addr member.
  */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 36)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
 static long rwmem_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 #else
 static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 		       unsigned long arg)
 #endif
 {
-	int i = 0, err = 0, retval = 0;
+	int i = 0, retval = 0;
 	volatile PST_RDM pst_rdm = NULL;
 	volatile PST_WRM pst_wrm = NULL;
 	unsigned char *kbuf = NULL, *tmpbuf = NULL;
@@ -111,20 +112,6 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 		pr_info("%s: ioctl fail 2\n", DRVNAME);
 		mutex_unlock(&mtx);
 		return -ENOTTY;
-	}
-
-	/* Verify direction */
-	if (_IOC_DIR(cmd) & _IOC_READ)
-		err =
-		    !access_ok(VERIFY_WRITE, (void __user *)arg,
-			       _IOC_SIZE(cmd));
-	else if (_IOC_DIR(cmd) & _IOC_WRITE)
-		err =
-		    !access_ok(VERIFY_READ, (void __user *)arg, _IOC_SIZE(cmd));
-	if (err) {
-		pr_info("%s: ioctl direction check fail!\n", DRVNAME);
-		mutex_unlock(&mtx);
-		return -EFAULT;
 	}
 
 	switch (cmd) {
@@ -466,4 +453,4 @@ module_exit(rwmem_cleanup_module);
 
 MODULE_AUTHOR("(c) Kaiwan N Billimoria, kaiwanTECH");
 MODULE_DESCRIPTION("Char driver to implement read/write (I/O) memory support.");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("Dual MIT/GPL");
