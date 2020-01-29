@@ -348,7 +348,9 @@ int is_user_address(volatile unsigned long addr)
 {
 	unsigned long long page_offset;
 	int stat = debugfs_get_page_offset_val(&page_offset);
-	assert(stat >= 0);
+
+	if (stat < 0)
+		FATAL("failed to get page offset value from kernel, aborting...\n");
 	MSG("page_offset = 0x%16llx\n", page_offset);
 
 	if (addr < page_offset)
