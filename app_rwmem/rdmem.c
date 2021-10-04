@@ -113,8 +113,10 @@ int main(int argc, char **argv)
 	MSG("1 offset? %s; st_rdm.addr=%p\n",
 	    (st_rdm.flag == USE_IOBASE ? "yes" : "no"), (void *)st_rdm.addr);
 
-	if (st_rdm.flag != USE_IOBASE) {
-		// if it's a userspace addr, check it's validity, else we simply assume it's a valid kernel va
+	if (st_rdm.flag != USE_IOBASE) { // we've been passed an absolute (user/kernel virtual) address
+		/* Let's verify it before attempting to use it in the kernel driver;
+		 * if it's a userspace addr, check it's validity, else we simply assume it's a valid kernel va
+		 */
 		if (is_user_address(st_rdm.addr)) {
 			if (uaddr_valid(st_rdm.addr) == -1) {
 				fprintf(stderr,

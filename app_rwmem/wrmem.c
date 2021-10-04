@@ -4,6 +4,7 @@
  * Part of the DEVMEM-RW opensource project - a simple 
  * utility to read / write [I/O] memory and display it.
  * This is the 'write' functionality app.
+ * We assume the corresponding device driver is loaded when you run this...
  *
  * Project home: 
  * https://github.com/kaiwan/device-memory-readwrite
@@ -95,13 +96,18 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	if (is_user_address(st_wrm.addr)) {
-		if (uaddr_valid(st_wrm.addr) == -1) {
-			fprintf(stderr,
+	if (st_wrm.flag != USE_IOBASE) { // we've been passed an absolute (user/kernel virtual) address
+		/* Let's verify it before attempting to use it in the kernel driver;
+		 * if it's a userspace addr, check it's validity, else we simply assume it's a valid kernel va
+		 */
+		if (is_user_address(st_wrm.addr)) { 
+			if (uaddr_valid(st_wrm.addr) == -1) {
+				fprintf(stderr,
 				"%s: the (usermode virtual) address passed (%p) seems to be invalid. Aborting...\n",
 				argv[0], (void *)st_wrm.addr);
-			close(fd);
-			exit(1);
+				close(fd);
+				exit(1);
+			}
 		}
 	}
 
