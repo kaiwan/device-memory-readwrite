@@ -105,7 +105,7 @@ typedef struct _ST_WRM {
 #define PRINT_CTX() do {                                                                     \
 	char sep='|', intr='.';                                                              \
 	                                                                                     \
-   if (in_interrupt()) {                                                                     \
+   if (!in_task()) {                                                                     \
       if (in_irq() && in_softirq())                                                          \
 	    intr='H';                                                                        \
 	  else if (in_irq())                                                                 \
@@ -120,7 +120,7 @@ typedef struct _ST_WRM {
 	"PRINT_CTX:: [%03d]%c%s%c:%d   %c "                                                  \
 	"%c%c%c%u "                                                                          \
 	"\n"                                                                                 \
-	, smp_processor_id(),                                                                \
+	, raw_smp_processor_id(),                                                                \
     (!current->mm?'[':' '), current->comm, (!current->mm?']':' '), current->pid, sep,        \
 	(irqs_disabled()?'d':'.'),                                                           \
 	(need_resched()?'N':'.'),                                                            \
@@ -130,8 +130,8 @@ typedef struct _ST_WRM {
 } while (0)
 #else				// using ftrace trace_prink() internally
 #define PRINT_CTX() do {                                                                          \
-	MSG("PRINT_CTX:: [cpu %02d]%s:%d\n", smp_processor_id(), __func__, current->pid);         \
-	if (!in_interrupt()) {                                                                    \
+	MSG("PRINT_CTX:: [cpu %02d]%s:%d\n", raw_smp_processor_id(), __func__, current->pid);         \
+	if (in_task()) {                                                                    \
   		MSG(" in process context:%c%s%c:%d\n",                                            \
 		    (!current->mm?'[':' '), current->comm, (!current->mm?']':' '), current->pid); \
 	} else {                                                                                  \
@@ -143,6 +143,23 @@ typedef struct _ST_WRM {
 } while (0)
 #endif
 #endif
+/*
+ * Interesting:
+ * Above, I had to change the smp_processor_id() to raw_smp_processor_id(); else,
+ * on a DEBUG kernel (configured with many debug config options), the foll warnings
+ * would ensue:
+Oct 04 12:19:53 dbg-LKD kernel: BUG: using smp_processor_id() in preemptible [00000000] code: rdmem/12133
+Oct 04 12:19:53 dbg-LKD kernel: caller is debug_smp_processor_id+0x17/0x20
+Oct 04 12:19:53 dbg-LKD kernel: CPU: 0 PID: 12133 Comm: rdmem Tainted: G      D    O      5.10.60-dbg01 #1
+Oct 04 12:19:53 dbg-LKD kernel: Hardware name: innotek GmbH VirtualBox/VirtualBox, BIOS VirtualBox 12/01/2006
+Oct 04 12:19:53 dbg-LKD kernel: Call Trace:
+Oct 04 12:19:53 dbg-LKD kernel:  dump_stack+0xbd/0xfa
+...
+ * This is caught due to the fact that, on a debug kernel, when the kernel config
+ * CONFIG_DEBUG_PREEMPT is enabled, it catches the possibility that functions
+ * like smp_processor_id() are called in an atomic context where sleeping / preemption
+ * is disallowed! With the 'raw' version it works without issues (just as Ftrace does).
+ */
 
 /*------------------ Usermode functions--------------------------------*/
 #ifndef __KERNEL__
