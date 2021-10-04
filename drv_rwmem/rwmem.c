@@ -16,6 +16,7 @@
  *         kaiwanTECH.
  * kaiwan -at- kaiwantech dot com
  */
+#define pr_fmt(fmt) "%s:%s(): " fmt, KBUILD_MODNAME, __func__
 #include "../common.h"
 #include <asm/byteorder.h>
 #include <asm/io.h>
@@ -96,20 +97,20 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 	unsigned long flags;
 
 	if (mutex_lock_interruptible(&mtx)) {
-		MSG("pid %d: mtx lock interrupted!\n", current->pid);
+		pr_info("pid %d: mtx lock interrupted!\n", current->pid);
 		return -ERESTARTSYS;
 	}
-	// MSG ("In ioctl method, cmd=%d type=%d\n", _IOC_NR(cmd), _IOC_TYPE(cmd));
+	// pr_debug ("In ioctl method, cmd=%d type=%d\n", _IOC_NR(cmd), _IOC_TYPE(cmd));
 	PRINT_CTX();
 
 	/* Check arguments */
 	if (_IOC_TYPE(cmd) != IOCTL_RWMEMDRV_MAGIC) {
-		pr_info("%s: ioctl fail 1\n", DRVNAME);
+		pr_info("ioctl fail 1\n");
 		mutex_unlock(&mtx);
 		return -ENOTTY;
 	}
 	if (_IOC_NR(cmd) > IOCTL_RWMEMDRV_MAXIOCTL) {
-		pr_info("%s: ioctl fail 2\n", DRVNAME);
+		pr_info("ioctl fail 2\n");
 		mutex_unlock(&mtx);
 		return -ENOTTY;
 	}
@@ -117,35 +118,34 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 	switch (cmd) {
 	case IOCTL_RWMEMDRV_IOCGMEM:	/* 'rdmem' */
 		if (!(pst_rdm = kzalloc(sizeof(ST_RDM), GFP_KERNEL))) {
-			pr_alert("%s: out of memory!\n", DRVNAME);
+			pr_alert("out of memory!\n");
 			retval = -ENOMEM;
 			goto rdm_out_unlock;
 		}
 
 		if (copy_from_user(pst_rdm, (PST_RDM) arg, sizeof(ST_RDM))) {
-			pr_alert("[%s] !WARNING! copy_from_user failed\n",
-				 DRVNAME);
+			pr_alert("!WARNING! copy_from_user failed\n");
 			retval = -EFAULT;
 			goto rdm_out_kfree_1;
 		}
 
-		MSG("pst_rdm=%p addr: %p buf=%p len=%d flag=%d\n\n",
+		pr_debug("pst_rdm=%p addr: %p buf=%p len=%d flag=%d\n\n",
 		    (void *)pst_rdm, (void *)pst_rdm->addr,
 		    (void *)pst_rdm->buf, pst_rdm->len, pst_rdm->flag);
 
 		kbuf = kmalloc(pst_rdm->len, GFP_KERNEL);
 		if (!kbuf) {
-			pr_alert("%s: out of memory! (kbuf)\n", DRVNAME);
+			pr_alert("out of memory! (kbuf)\n");
 			retval = -ENOMEM;
 			goto rdm_out_kfree_1;
 		}
 		memset(kbuf, POISONVAL, pst_rdm->len);	// sizeof (kbuf));
-		// MSG ("kbuf=0x%x pst_rdm=0x%x\n", (unsigned int)kbuf, (unsigned
+		// pr_debug ("kbuf=0x%x pst_rdm=0x%x\n", (unsigned int)kbuf, (unsigned
 		// int)pst_rdm);
 
 		tmpbuf = kmalloc(pst_rdm->len, GFP_KERNEL);
 		if (!tmpbuf) {
-			pr_alert("%s: out of memory! (tmpbuf)\n", DRVNAME);
+			pr_alert("out of memory! (tmpbuf)\n");
 			retval = -ENOMEM;
 			goto rdm_out_kfree_2;
 		}
@@ -166,7 +166,7 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 				     pst_rdm->len);
 #else
 		if (USE_IOBASE == pst_rdm->flag) {	// offset relative to iobase address passed
-			MSG("dest:tmpbuf=%p src:(iobase+pst_rdm->addr)=%p pst_rdm->len=%d\n",
+			pr_debug("dest:tmpbuf=%p src:(iobase+pst_rdm->addr)=%p pst_rdm->len=%d\n",
 				tmpbuf, (iobase + pst_rdm->addr), pst_rdm->len);
 			memcpy_fromio(tmpbuf, (iobase + pst_rdm->addr),
 				      pst_rdm->len);
@@ -181,7 +181,7 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 
 #ifndef __BIG_ENDIAN
 		/* Word-swap necesary... */
-		MSG("Little-endian, doing word-swap..\n");
+		pr_debug("Little-endian, doing word-swap..\n");
 		for (i = 0; i < pst_rdm->len; i += 4) {
 			kbuf[i] = tmpbuf[i + 3];
 			kbuf[i + 1] = tmpbuf[i + 2];
@@ -199,8 +199,7 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 
 		mb();
 		if (copy_to_user(pst_rdm->buf, kbuf, pst_rdm->len)) {
-			pr_alert("[%s] !WARNING! copy_to_user failed\n",
-				 DRVNAME);
+			pr_alert("!WARNING! copy_to_user failed\n");
 			retval = -EFAULT;
 			goto rdm_out_kfree_3;
 		}
@@ -225,17 +224,16 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 		}
 
 		if (!(pst_wrm = kzalloc(sizeof(ST_WRM), GFP_KERNEL))) {
-			pr_alert("%s: out of memory!\n", DRVNAME);
+			pr_alert("out of memory!\n");
 			retval = -ENOMEM;
 			goto wrm_out_unlock;
 		}
 		if (copy_from_user(pst_wrm, (PST_WRM) arg, sizeof(ST_WRM))) {
-			pr_alert("[%s] !WARNING! copy_from_user failed\n",
-				 DRVNAME);
+			pr_alert("!WARNING! copy_from_user failed\n");
 			retval = -EFAULT;
 			goto wrm_out_kfree_1;
 		}
-		MSG("addr/offset: 0x%x val=0x%x\n", (unsigned int)pst_wrm->addr,
+		pr_debug("addr/offset: 0x%x val=0x%x\n", (unsigned int)pst_wrm->addr,
 		    (unsigned int)pst_wrm->val);
 
 		//---------Critical section BEGIN: save & turn off interrupts
@@ -289,13 +287,13 @@ static int rwmem_open(struct inode *inode, struct file *filp)
 
 	if (filp->f_op && filp->f_op->open)
 		return filp->f_op->open(inode, filp);
-	MSG("opened.\n");
+	pr_debug("opened.\n");
 	return 0;
 }
 
 static int rwmem_close(struct inode *ino, struct file *filp)
 {
-	MSG("closed.\n");
+	pr_debug("closed.\n");
 	return 0;
 }
 
@@ -320,11 +318,10 @@ static int chardev_registration(void)
 	res = alloc_chrdev_region(&chardrv_dev_number, RW_MINOR_START, RW_COUNT,
 				  DEVICE_FILE);
 	if (res) {
-		pr_warn("%s: could not allocate device\n", DRVNAME);
+		pr_warn("could not allocate device\n");
 		return res;
 	} else {
-		pr_info("%s: registered with major number %d\n", DRVNAME,
-			MAJOR(chardrv_dev_number));
+		pr_info("registered with major number %d\n", MAJOR(chardrv_dev_number));
 	}
 
 	chardrv_devp =
@@ -342,10 +339,10 @@ static int chardev_registration(void)
 			       MKDEV(MAJOR(chardrv_dev_number),
 				     MINOR(chardrv_dev_number) + i), 1);
 		if (res) {
-			pr_info("%s: Error on cdev_add for %d\n", DRVNAME, res);
+			pr_info("Error on cdev_add: %d\n", res);
 			return res;
 		} else {
-			pr_info("%s: cdev %s.%d added\n", DRVNAME, DRVNAME, i);
+			pr_info("cdev %s.%d added\n", DRVNAME, i);
 		}
 	}
 
@@ -360,14 +357,10 @@ static int chardev_registration(void)
 				   MKDEV(MAJOR(chardrv_dev_number),
 					 MINOR(chardrv_dev_number) + i), NULL,
 				   "%s.%d", DRVNAME, i)) {
-			pr_notice
-			    ("%s: Error creating device node /dev/%s.%d !\n",
-			     DRVNAME, DRVNAME, i);
+			pr_notice("Error creating device node /dev/%s.%d !\n", DRVNAME, i);
 			return res;
-		} else {
-			pr_info(" %s: Device node /dev/%s.%d created.\n",
-				DRVNAME, DRVNAME, i);
-		}
+		} else
+			pr_info("Device node /dev/%s.%d created.\n", DRVNAME, i);
 	}
 	return res;
 }
@@ -399,7 +392,7 @@ static int perform_registration(void)
 	res = 0;
 	dbgfs_parent = setup_debugfs_entries();
 	if (!dbgfs_parent) {
-		pr_alert("%s: debugfs setup failed, aborting...\n", DRVNAME);
+		pr_alert("debugfs setup failed, aborting...\n");
 		res = PTR_ERR(dbgfs_parent);
 	}
 	return res;
@@ -413,9 +406,8 @@ static int __init rwmem_init_module(void)
 	// If no IO base start address specified, we're done for now
 	if (!iobase_start || !iobase_len) {
 		pr_info
-		    ("%s: Init done. IO base address NOT specified (or len invalid) as "
-		     "module param; so, not performing any ioremap() ...\n",
-		     DRVNAME);
+		    ("Init done. IO base address NOT specified (or len invalid) as "
+		     "module param; so, not performing any ioremap() ...\n");
 		return perform_registration();
 	}
 
@@ -428,14 +420,13 @@ static int __init rwmem_init_module(void)
 			first_time = 0;
 			goto get_region;
 		}
-		pr_info("%s: Could not get IO resource, aborting...\n",
-			DRVNAME);
+		pr_info("Could not get IO resource, aborting...\n");
 		return -ENXIO; //PTR_ERR(iores);
 	}
 
 	iobase = ioremap(iobase_start, iobase_len);
 	if (!iobase) {
-		pr_info("%s: ioremap failed, aborting...\n", DRVNAME);
+		pr_info("ioremap failed, aborting...\n");
 		release_mem_region(iobase_start, iobase_len);
 		return -ENXIO; //PTR_ERR(iobase);
 	}
@@ -453,7 +444,7 @@ static void __exit rwmem_cleanup_module(void)
 		iounmap(iobase);
 		release_mem_region(iobase_start, iobase_len);
 	}
-	pr_info("%s: unregistered.\n", DRVNAME);
+	pr_info("unregistered.\n");
 }
 
 module_init(rwmem_init_module);

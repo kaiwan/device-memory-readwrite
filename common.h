@@ -19,24 +19,13 @@
 #define APPNAME		"rdm_wrm_app"
 #define	DRVNAME		"devmem_rw"
 
-#ifdef __KERNEL__
+#ifndef __KERNEL__
 #ifdef DEBUG_PRINT
-#define MSG(string, args...)				\
-	pr_info("[%s]%s:%d: " string,			\
-		DRVNAME, __FUNCTION__, __LINE__, ##args)
-#define QP MSG("\n");
-#else
-#define MSG(string, args...)
-#define QP
-#endif
-#else				// userspace
-#ifdef DEBUG_PRINT
-#define MSG(string, args...) \
+ #define MSG(string, args...) \
 	fprintf (stderr, "[%s]%s:%d: " string,		\
 		APPNAME, __FUNCTION__, __LINE__, ##args)
 #else
-#define MSG(string, args...)
-#define QP
+ #define MSG(string, args...)
 #endif
 #endif
 
@@ -102,26 +91,26 @@ typedef struct _ST_WRM {
 #include <linux/interrupt.h>
 
 #ifndef USE_FTRACE_PRINT	// 'normal' printk(), lets emulate ftrace latency format
-#define PRINT_CTX() do {                                                                     \
+#define PRINT_CTX() do {                                                                 \
 	char sep='|', intr='.';                                                              \
 	                                                                                     \
    if (!in_task()) {                                                                     \
-      if (in_irq() && in_softirq())                                                          \
+      if (in_irq() && in_softirq())                                                      \
 	    intr='H';                                                                        \
 	  else if (in_irq())                                                                 \
 	    intr='h';                                                                        \
 	  else if (in_softirq())                                                             \
 	    intr='s';                                                                        \
 	}                                                                                    \
-   else                                                                                      \
+   else                                                                                  \
 	intr='.';                                                                            \
 	                                                                                     \
-	MSG(                                                                            \
+	pr_debug(                                                                            \
 	"PRINT_CTX:: [%03d]%c%s%c:%d   %c "                                                  \
 	"%c%c%c%u "                                                                          \
 	"\n"                                                                                 \
-	, raw_smp_processor_id(),                                                                \
-    (!current->mm?'[':' '), current->comm, (!current->mm?']':' '), current->pid, sep,        \
+	, raw_smp_processor_id(),                                                            \
+	(!current->mm?'[':' '), current->comm, (!current->mm?']':' '), current->pid, sep,    \
 	(irqs_disabled()?'d':'.'),                                                           \
 	(need_resched()?'N':'.'),                                                            \
 	intr,                                                                                \
@@ -130,12 +119,12 @@ typedef struct _ST_WRM {
 } while (0)
 #else				// using ftrace trace_prink() internally
 #define PRINT_CTX() do {                                                                          \
-	MSG("PRINT_CTX:: [cpu %02d]%s:%d\n", raw_smp_processor_id(), __func__, current->pid);         \
+	pr_debug("PRINT_CTX:: [cpu %02d]%s:%d\n", raw_smp_processor_id(), __func__, current->pid);         \
 	if (in_task()) {                                                                    \
-  		MSG(" in process context:%c%s%c:%d\n",                                            \
+		pr_debug(" in process context:%c%s%c:%d\n",                                            \
 		    (!current->mm?'[':' '), current->comm, (!current->mm?']':' '), current->pid); \
 	} else {                                                                                  \
-        MSG(" in interrupt context: in_interrupt:%3s. in_irq:%3s. in_softirq:%3s. "               \
+        pr_debug(" in interrupt context: in_interrupt:%3s. in_irq:%3s. in_softirq:%3s. "               \
 		"in_serving_softirq:%3s. preempt_count=0x%x\n",                                   \
           (in_interrupt()?"yes":"no"), (in_irq()?"yes":"no"), (in_softirq()?"yes":"no"),          \
           (in_serving_softirq()?"yes":"no"), (preempt_count() && 0xff));                          \

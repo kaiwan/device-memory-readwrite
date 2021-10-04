@@ -18,6 +18,7 @@
  *         kaiwanTECH.
  * kaiwan -at- kaiwantech dot com
  */
+#define pr_fmt(fmt) "%s:%s(): " fmt, KBUILD_MODNAME, __func__
 #include "../common.h"
 #include <linux/debugfs.h>
 #include <linux/init.h>
@@ -27,9 +28,9 @@
 
 #define DBGFS_CREATE_ERR(pDentry, str)                                         \
   do {                                                                         \
-    printk("%s: failed.\n", str);                                              \
+    pr_warn("%s: failed.\n", str);                                              \
     if (PTR_ERR(pDentry) == -ENODEV)                                           \
-      printk(" debugfs support not available?\n");                             \
+      pr_warn(" debugfs support not available?\n");                             \
     debugfs_remove_recursive(pDentry);                                         \
     return (pDentry);                                                          \
   } while (0)
@@ -45,7 +46,7 @@ static ssize_t dbgfs_genread(struct file *filp, char __user * ubuf,
 #else
 	snprintf(kbuf, 10, "-unknown-");
 #endif
-	MSG("kbuf: %s\n", kbuf);
+	pr_debug("kbuf: %s\n", kbuf);
 
 	/* simple_read_from_buffer - copy data from the buffer to user space:
 	 * @to: the user space buffer to read to
@@ -89,7 +90,7 @@ struct dentry *setup_debugfs_entries(void)
 	    ("get_page_offset", 0444, parent, NULL, &dbg_fops)) {
 		DBGFS_CREATE_ERR(parent, "debugfs_create_file");
 	}
-	MSG("debugfs hooks created\n");
+	pr_debug("debugfs hooks created\n");
 
 	return parent;
 }
