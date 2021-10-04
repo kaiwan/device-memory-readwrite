@@ -372,21 +372,43 @@ static int chardev_registration(void)
 	return res;
 }
 
-static int __init rwmem_init_module(void)
+/* Char driver unregister */
+static void chardev_unregister(void)
 {
-	int res, first_time = 1;
-	struct resource *iores = NULL;
+	int i;
+
+    for (i = 0; i < RW_COUNT; i++) {
+         cdev_del(&chardrv_devp[i].cdev);
+         device_destroy(chardrv_class, MKDEV(MAJOR(chardrv_dev_number),
+                                        MINOR(chardrv_dev_number) + i));
+        }
+        class_destroy(chardrv_class);
+        kfree(chardrv_devp);
+        unregister_chrdev_region(chardrv_dev_number, RW_COUNT);
+		pr_info("unregistered char driver\n");
+}
+
+static int perform_registration(void)
+{
+	int res;
 
 	res = chardev_registration();
 	if (res)
 		return res;
 
+	res = 0;
 	dbgfs_parent = setup_debugfs_entries();
 	if (!dbgfs_parent) {
 		pr_alert("%s: debugfs setup failed, aborting...\n", DRVNAME);
 		res = PTR_ERR(dbgfs_parent);
-		return res;
 	}
+	return res;
+}
+
+static int __init rwmem_init_module(void)
+{
+	int first_time = 1;
+	struct resource *iores = NULL;
 
 	// If no IO base start address specified, we're done for now
 	if (!iobase_start || !iobase_len) {
@@ -394,57 +416,43 @@ static int __init rwmem_init_module(void)
 		    ("%s: Init done. IO base address NOT specified (or len invalid) as "
 		     "module param; so, not performing any ioremap() ...\n",
 		     DRVNAME);
-		return 0;
+		return perform_registration();
 	}
 
  get_region:
 	iores = request_mem_region(iobase_start, iobase_len, reg_name);
 	if (!iores) {
 		if (force_rel && first_time) {
+			pr_debug("attempting to release mem region..\n");
 			release_mem_region(iobase_start, iobase_len);
 			first_time = 0;
 			goto get_region;
 		}
-		debugfs_remove_recursive(dbgfs_parent);
 		pr_info("%s: Could not get IO resource, aborting...\n",
 			DRVNAME);
-		return PTR_ERR(iores);
+		return -ENXIO; //PTR_ERR(iores);
 	}
 
 	iobase = ioremap(iobase_start, iobase_len);
 	if (!iobase) {
 		pr_info("%s: ioremap failed, aborting...\n", DRVNAME);
-		debugfs_remove_recursive(dbgfs_parent);
 		release_mem_region(iobase_start, iobase_len);
-		return PTR_ERR(iobase);
+		return -ENXIO; //PTR_ERR(iobase);
 	}
-	MSG("iobase = %p\n", (void *)iobase);
+	pr_debug("iobase = %p\n", (void *)iobase);
 
-	return 0;
+	// All ok; register the driver and setup debugfs hooks...
+	return perform_registration();
 }
 
 static void __exit rwmem_cleanup_module(void)
 {
-	int i = 0;
-
-	// MSG("bf remove: dbgfs_parent=%p\n", dbgfs_parent);
 	debugfs_remove_recursive(dbgfs_parent);
-
+	chardev_unregister();
 	if (iobase_start) {
 		iounmap(iobase);
 		release_mem_region(iobase_start, iobase_len);
 	}
-
-	/* Char driver unregister */
-	for (i = 0; i < RW_COUNT; i++) {
-		cdev_del(&chardrv_devp[i].cdev);
-		device_destroy(chardrv_class, MKDEV(MAJOR(chardrv_dev_number),
-						    MINOR(chardrv_dev_number) +
-						    i));
-	}
-	class_destroy(chardrv_class);
-	kfree(chardrv_devp);
-	unregister_chrdev_region(chardrv_dev_number, RW_COUNT);
 	pr_info("%s: unregistered.\n", DRVNAME);
 }
 
