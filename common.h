@@ -2,10 +2,10 @@
  * common.h
  *
  * Project home: 
- * http://code.google.com/p/device-memory-readwrite/
+ * http://github.com/kaiwan/device-memory-readwrite/
  *
  * Pl see detailed usage Wiki page here:
- * http://code.google.com/p/device-memory-readwrite/wiki/UsageWithExamples
+ * https://github.com/kaiwan/device-memory-readwrite/blob/master/Devmem_HOWTO.pdf
  *
  * For rdmem/wrmem utility.
  */
@@ -242,11 +242,6 @@ int uaddr_valid(volatile unsigned long addr)
 {
 	int fd[2];
 
-#if 0
-	// RELOOK : doesn't work on 64-bit??
-	if (sizeof(void *) == 8) // 64-bit system
-		return -3;
-#endif
 	if (pipe(fd) == -1) {
 		perror("pipe");
 		return -2;

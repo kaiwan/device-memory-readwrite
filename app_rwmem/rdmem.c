@@ -4,6 +4,7 @@
  * Part of the DEVMEM-RW opensource project - a simple 
  * utility to read / write [I/O] memory and display it.
  * This is the 'read' functionality app.
+ * We assume the corresponding device driver is loaded when you run this...
  *
  * Project home: 
  * https://github.com/kaiwan/device-memory-readwrite

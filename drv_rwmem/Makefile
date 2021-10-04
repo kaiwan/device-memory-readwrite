@@ -29,7 +29,7 @@ clean:
 else
 
 # Uncomment the -DDEBUG_PRINT directive to actiavte the 'MSG' macro...
-EXTRA_CFLAGS += -g -ggdb -DDEBUG_PRINT #-DUSE_FTRACE_PRINT
+EXTRA_CFLAGS += -DDEBUG -g -ggdb -DDEBUG_PRINT #-DUSE_FTRACE_PRINT
 
 $(info Building\: ARCH=${ARCH}, CROSS_COMPILE=${CROSS_COMPILE}, KERNELRELEASE=${KERNELRELEASE} and EXTRA_CFLAGS=${EXTRA_CFLAGS})
 

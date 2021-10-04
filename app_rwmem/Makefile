@@ -4,7 +4,7 @@
 # Also, you must ensure that the above toolchain is in your PATH
 GCC := ${CROSS_COMPILE}gcc
 CFLAGS=-O2 -Wall -UDEBUG
-CFLAGS_DBG=-g -ggdb -gdwarf-4 -O0 -Wall -Wextra -DDEBUG_PRINT
+CFLAGS_DBG=-DDEBUG -g -ggdb -gdwarf-4 -O0 -Wall -Wextra -DDEBUG_PRINT
 
 ALL := rdmem wrmem rdmem_dbg wrmem_dbg
 all: ${ALL}
