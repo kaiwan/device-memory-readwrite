@@ -36,7 +36,7 @@
 
 // copy_[to|from]_user()
 #include <linux/version.h>
-#if LINUX_VERSION_CODE > KERNEL_VERSION(4,11,0)
+#if LINUX_VERSION_CODE > KERNEL_VERSION(4, 11, 0)
 #include <linux/uaccess.h>
 #else
 #include <asm/uaccess.h>
@@ -49,28 +49,28 @@ struct rw_dev {
 	char name[10];
 	struct cdev cdev;	/* Char device structure      */
 } *rw_devp;
-static void __iomem *iobase = NULL;
+static void __iomem *iobase;
 
-static struct dentry *dbgfs_parent = NULL;
+static struct dentry *dbgfs_parent;
 static DEFINE_MUTEX(mtx);
 
 //-------------- Module params
-static unsigned long iobase_start = 0x0;
+static unsigned long iobase_start;
 module_param(iobase_start, ulong, 0);
 MODULE_PARM_DESC(iobase_start,
-		 "Start (physical) address of IO base memory"
-		 "(typically h/w registers mapped here by the processor)");
+"Start (physical) address of IO base memory "
+"(typically h/w registers mapped here by the processor)");
 
-static int iobase_len = 0;
+static int iobase_len;
 module_param(iobase_len, uint, 0);
 MODULE_PARM_DESC(iobase_len,
-		 "Length (in bytes) of IO base memory (typically h/w registers mapped "
-		 "here by the processor)");
+"Length (in bytes) of IO base memory (typically h/w registers mapped "
+"here by the processor)");
 
-static int force_rel = 0;
+static int force_rel;
 module_param(force_rel, uint, 0);
 MODULE_PARM_DESC(force_rel, "Set to 1 to Force releasing the IO base memory \n"
-		 "region, even if (esp if) already mapped.\nWARNING! Could be dangerous!");
+"region, even if (esp if) already mapped.\nWARNING! Could be dangerous!");
 
 static char *reg_name;
 module_param(reg_name, charp, 0);
@@ -83,7 +83,7 @@ MODULE_PARM_DESC(reg_name,
  * In this case, pst_[r|w]dm->flag == 0 and the offset is what arrives from
  * userspace in the pst_[r|w]dm->addr member.
  */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 36)
 static long rwmem_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 #else
 static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
@@ -117,7 +117,8 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 
 	switch (cmd) {
 	case IOCTL_RWMEMDRV_IOCGMEM:	/* 'rdmem' */
-		if (!(pst_rdm = kzalloc(sizeof(ST_RDM), GFP_KERNEL))) {
+		pst_rdm = kzalloc(sizeof(ST_RDM), GFP_KERNEL);
+		if (!pst_rdm) {
 			pr_alert("out of memory!\n");
 			retval = -ENOMEM;
 			goto rdm_out_unlock;
@@ -130,8 +131,8 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 		}
 
 		pr_debug("pst_rdm=%p addr: %p buf=%p len=%d flag=%d\n\n",
-		    (void *)pst_rdm, (void *)pst_rdm->addr,
-		    (void *)pst_rdm->buf, pst_rdm->len, pst_rdm->flag);
+			 (void *)pst_rdm, (void *)pst_rdm->addr,
+			 (void *)pst_rdm->buf, pst_rdm->len, pst_rdm->flag);
 
 		kbuf = kmalloc(pst_rdm->len, GFP_KERNEL);
 		if (!kbuf) {
@@ -157,22 +158,19 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 #if 0				//------------- ioread32_rep does NOT seem to work! ioread32 does...(on
 		//ARM BB). WHY ???
 		if (USE_IOBASE == pst_rdm->flag)
-			ioread32_rep(tmpbuf, (void *)(iobase + pst_rdm->addr),
-				     pst_rdm->len);
+			ioread32_rep(tmpbuf, (void *)(iobase + pst_rdm->addr), pst_rdm->len);
 		else
 			ioread32_rep(kbuf, (void *)pst_rdm->addr,
 				     pst_rdm->len / sizeof(void *));
-		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, tmpbuf,
-				     pst_rdm->len);
+		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, tmpbuf, pst_rdm->len);
 #else
 		if (USE_IOBASE == pst_rdm->flag) {	// offset relative to iobase address passed
-			pr_debug("dest:tmpbuf=%p src:(iobase+pst_rdm->addr)=%p pst_rdm->len=%d\n",
-				tmpbuf, (iobase + pst_rdm->addr), pst_rdm->len);
-			memcpy_fromio(tmpbuf, (iobase + pst_rdm->addr),
-				      pst_rdm->len);
+			pr_debug
+			    ("dest:tmpbuf=%p src:(iobase+pst_rdm->addr)=%p pst_rdm->len=%d\n",
+			     tmpbuf, (iobase + pst_rdm->addr), pst_rdm->len);
+			memcpy_fromio(tmpbuf, (iobase + pst_rdm->addr), pst_rdm->len);
 		} else {	// absolute (virtual) address passed
-			memcpy_fromio(tmpbuf, (void *)pst_rdm->addr,
-				      pst_rdm->len);
+			memcpy_fromio(tmpbuf, (void *)pst_rdm->addr, pst_rdm->len);
 		}
 		// print_hex_dump_bytes ("", DUMP_PREFIX_OFFSET, tmpbuf, pst_rdm->len);
 #endif
@@ -192,11 +190,15 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 		memcpy(kbuf, tmpbuf, pst_rdm->len);
 #endif
 
-#ifdef DEBUG_PRINT
-		print_hex_dump_bytes("kbuf: ", DUMP_PREFIX_OFFSET, kbuf,
-				     pst_rdm->len);
+#ifdef DEBUG
+		print_hex_dump_bytes("kbuf: ", DUMP_PREFIX_OFFSET, kbuf, pst_rdm->len);
 #endif
 
+	/* ARM* requires :
+	 * - A memory write barrier before the first write to a peripheral
+	 * - A memory read barrier after the last read of a peripheral
+	 * So this isn't (yet) correct... TODO
+	 */
 		mb();
 		if (copy_to_user(pst_rdm->buf, kbuf, pst_rdm->len)) {
 			pr_alert("!WARNING! copy_to_user failed\n");
@@ -223,7 +225,8 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 			goto wrm_out_unlock;
 		}
 
-		if (!(pst_wrm = kzalloc(sizeof(ST_WRM), GFP_KERNEL))) {
+		pst_wrm = kzalloc(sizeof(ST_WRM), GFP_KERNEL);
+		if (!pst_wrm) {
 			pr_alert("out of memory!\n");
 			retval = -ENOMEM;
 			goto wrm_out_unlock;
@@ -234,16 +237,15 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 			goto wrm_out_kfree_1;
 		}
 		pr_debug("addr/offset: 0x%x val=0x%x\n", (unsigned int)pst_wrm->addr,
-		    (unsigned int)pst_wrm->val);
+			 (unsigned int)pst_wrm->val);
 
 		//---------Critical section BEGIN: save & turn off interrupts
 		local_irq_save(flags);
-		if (USE_IOBASE == pst_wrm->flag)
+		if (pst_wrm->flag == USE_IOBASE)
 			iowrite32((u32) pst_wrm->val, pst_wrm->addr + iobase);
 		else
-			iowrite32((u32) pst_wrm->val,
-				  (void __iomem *)pst_wrm->addr);
-		wmb();
+			iowrite32((u32) pst_wrm->val, (void __iomem *)pst_wrm->addr);
+		wmb(); // (same as mb(); comment above
 		local_irq_restore(flags);
 		//---------Critical section END: restored interrupt state
 
@@ -266,7 +268,7 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 }
 
 /* Minor-specific open routines */
-static struct file_operations rwmem_fops = {
+static const struct file_operations rwmem_fops = {
 	.llseek = no_llseek,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 36)
 	.unlocked_ioctl = rwmem_ioctl,
@@ -298,7 +300,7 @@ static int rwmem_close(struct inode *ino, struct file *filp)
 }
 
 /* Major-wide open routine */
-static struct file_operations rwmem_open_fops = {
+static const struct file_operations rwmem_open_fops = {
 	.open = rwmem_open,	/* just a means to get at the real open */
 	.release = rwmem_close,
 };
@@ -309,26 +311,22 @@ static struct chardrv_dev {
 	char name[10];
 	struct cdev cdev;
 } *chardrv_devp;
-static struct class *chardrv_class = NULL;
+static struct class *chardrv_class;
 
 static int chardev_registration(void)
 {
 	int res = 0, i = 0;
 
-	res = alloc_chrdev_region(&chardrv_dev_number, RW_MINOR_START, RW_COUNT,
-				  DEVICE_FILE);
+	res = alloc_chrdev_region(&chardrv_dev_number, RW_MINOR_START, RW_COUNT, DEVICE_FILE);
 	if (res) {
 		pr_warn("could not allocate device\n");
 		return res;
-	} else {
-		pr_info("registered with major number %d\n", MAJOR(chardrv_dev_number));
 	}
+	pr_info("registered with major number %d\n", MAJOR(chardrv_dev_number));
 
-	chardrv_devp =
-	    kmalloc(RW_COUNT * sizeof(struct chardrv_dev), GFP_KERNEL);
-	if (NULL == chardrv_devp) {
+	chardrv_devp = kmalloc(RW_COUNT * sizeof(struct chardrv_dev), GFP_KERNEL);
+	if (!chardrv_devp)
 		return -ENOMEM;
-	}
 
 	memset(chardrv_devp, 0, RW_COUNT * sizeof(struct chardrv_dev));
 	for (i = 0; i < RW_COUNT; i++) {
@@ -341,9 +339,8 @@ static int chardev_registration(void)
 		if (res) {
 			pr_info("Error on cdev_add: %d\n", res);
 			return res;
-		} else {
-			pr_info("cdev %s.%d added\n", DRVNAME, i);
 		}
+		pr_info("cdev %s.%d added\n", DRVNAME, i);
 	}
 
 	/* Create the devices.
@@ -370,15 +367,15 @@ static void chardev_unregister(void)
 {
 	int i;
 
-    for (i = 0; i < RW_COUNT; i++) {
-         cdev_del(&chardrv_devp[i].cdev);
-         device_destroy(chardrv_class, MKDEV(MAJOR(chardrv_dev_number),
-                                        MINOR(chardrv_dev_number) + i));
-        }
-        class_destroy(chardrv_class);
-        kfree(chardrv_devp);
-        unregister_chrdev_region(chardrv_dev_number, RW_COUNT);
-		pr_info("unregistered char driver\n");
+	for (i = 0; i < RW_COUNT; i++) {
+		cdev_del(&chardrv_devp[i].cdev);
+		device_destroy(chardrv_class, MKDEV(MAJOR(chardrv_dev_number),
+						    MINOR(chardrv_dev_number) + i));
+	}
+	class_destroy(chardrv_class);
+	kfree(chardrv_devp);
+	unregister_chrdev_region(chardrv_dev_number, RW_COUNT);
+	pr_info("unregistered char driver\n");
 }
 
 static int perform_registration(void)
@@ -406,8 +403,8 @@ static int __init rwmem_init_module(void)
 	// If no IO base start address specified, we're done for now
 	if (!iobase_start || !iobase_len) {
 		pr_info
-		    ("Init done. IO base address NOT specified (or len invalid) as "
-		     "module param; so, not performing any ioremap() ...\n");
+	    ("Init done. IO base address NOT specified (or len invalid) as "
+	     "module param; so, not performing any ioremap() ...\n");
 		return perform_registration();
 	}
 
@@ -421,14 +418,14 @@ static int __init rwmem_init_module(void)
 			goto get_region;
 		}
 		pr_info("Could not get IO resource, aborting...\n");
-		return -ENXIO; //PTR_ERR(iores);
+		return -ENXIO;	//PTR_ERR(iores);
 	}
 
 	iobase = ioremap(iobase_start, iobase_len);
 	if (!iobase) {
 		pr_info("ioremap failed, aborting...\n");
 		release_mem_region(iobase_start, iobase_len);
-		return -ENXIO; //PTR_ERR(iobase);
+		return -ENXIO;	//PTR_ERR(iobase);
 	}
 	pr_debug("iobase = %p\n", (void *)iobase);
 
