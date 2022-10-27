@@ -67,71 +67,59 @@ typedef struct _ST_WRM {
 
 #ifdef __KERNEL__
 /*------------------------ PRINT_CTX ---------------------------------*/
-/* 
- An interesting way to print the context info:
- If USE_FTRACE_PRINT is On, it implies we'll use trace_printk(), else the vanilla
- printk(). 
- If we are using trace_printk(), we will automatically get output in the ftrace 
- latency format (see below):
-
- * The Ftrace 'latency-format' :
-                       _-----=> irqs-off          [d]
-                      / _----=> need-resched      [N]
-                     | / _---=> hardirq/softirq   [H|h|s]   H=>both h && s
-                     || / _--=> preempt-depth     [#]
-                     ||| /                      
- CPU  TASK/PID       ||||  DURATION                  FUNCTION CALLS 
- |     |    |        ||||   |   |                     |   |   |   | 
-
- However, if we're _not_ using ftrace trace_printk(), then we'll _emulate_ the same
- with the printk() !
- (Of course, without the 'Duration' and 'Function Calls' fields).
+/*
+ * An interesting way to print the context info; we mimic the kernel
+ * Ftrace 'latency-format' :
+ *                       _-----=> irqs-off          [d]
+ *                      / _----=> need-resched      [N]
+ *                     | / _---=> hardirq/softirq   [H|h|s] [1]
+ *                     || / _--=> preempt-depth     [#]
+ *                     ||| /
+ * CPU  TASK/PID       ||||  DURATION                  FUNCTION CALLS
+ * |     |    |        ||||   |   |                     |   |   |   |
+ *
+ * [1] 'h' = hard irq is running ; 'H' = hard irq occurred inside a softirq]
+ *
+ * Sample output (via 'normal' printk method; in this comment, we make / * into \* ...)
+ *  CPU)  task_name:PID  | irqs,need-resched,hard/softirq,preempt-depth  \* func_name() *\
+ *  001)  rdwr_drv_secret -4857   |  ...0   \* read_miscdrv_rdwr() *\
+ *
+ * (of course, above, we don't display the 'Duration' and 'Function Calls' fields)
  */
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 
-#ifndef USE_FTRACE_PRINT	// 'normal' printk(), lets emulate ftrace latency format
-#define PRINT_CTX() do {                                                                 \
-	char sep='|', intr='.';                                                              \
-	                                                                                     \
-   if (!in_task()) {                                                                     \
-      if (in_irq() && in_softirq())                                                      \
-	    intr='H';                                                                        \
-	  else if (in_irq())                                                                 \
-	    intr='h';                                                                        \
-	  else if (in_softirq())                                                             \
-	    intr='s';                                                                        \
-	}                                                                                    \
-   else                                                                                  \
-	intr='.';                                                                            \
-	                                                                                     \
-	pr_debug(                                                                            \
-	"PRINT_CTX:: [%03d]%c%s%c:%d   %c "                                                  \
-	"%c%c%c%u "                                                                          \
-	"\n"                                                                                 \
-	, raw_smp_processor_id(),                                                            \
-	(!current->mm?'[':' '), current->comm, (!current->mm?']':' '), current->pid, sep,    \
-	(irqs_disabled()?'d':'.'),                                                           \
-	(need_resched()?'N':'.'),                                                            \
-	intr,                                                                                \
-	(preempt_count() && 0xff)                                                            \
-	);                                                                                   \
-} while (0)
-#else				// using ftrace trace_prink() internally
-#define PRINT_CTX() do {                                                                          \
-	pr_debug("PRINT_CTX:: [cpu %02d]%s:%d\n", raw_smp_processor_id(), __func__, current->pid);         \
-	if (in_task()) {                                                                    \
-		pr_debug(" in process context:%c%s%c:%d\n",                                            \
-		    (!current->mm?'[':' '), current->comm, (!current->mm?']':' '), current->pid); \
-	} else {                                                                                  \
-        pr_debug(" in interrupt context: in_interrupt:%3s. in_irq:%3s. in_softirq:%3s. "               \
-		"in_serving_softirq:%3s. preempt_count=0x%x\n",                                   \
-          (in_interrupt()?"yes":"no"), (in_irq()?"yes":"no"), (in_softirq()?"yes":"no"),          \
-          (in_serving_softirq()?"yes":"no"), (preempt_count() && 0xff));                          \
-	}                                                                                         \
+#define PRINT_CTX() do {                                                      \
+	int PRINTCTX_SHOWHDR = 0;                                                 \
+	char intr = '.';                                                          \
+	if (!in_task()) {                                                         \
+		if (in_irq() && in_softirq())                                         \
+			intr = 'H'; /* hardirq occurred inside a softirq */               \
+		else if (in_irq())                                                    \
+			intr = 'h'; /* hardirq is running */                              \
+		else if (in_softirq())                                                \
+			intr = 's';                                                       \
+	}                                                                         \
+	else                                                                      \
+		intr = '.';                                                           \
+										                                      \
+	if (PRINTCTX_SHOWHDR == 1)                                                \
+		pr_debug("CPU)  task_name:PID  | irqs,need-resched,hard/softirq,preempt-depth  /* func_name() */\n"); \
+	pr_debug(                                                                    \
+	"%03d) %c%s%c:%d   |  "                                                      \
+	"%c%c%c%u   "                                                                \
+	"/* %s() */\n"                                                               \
+	, raw_smp_processor_id(),                                                    \
+	(!current->mm?'[':' '), current->comm, (!current->mm?']':' '), current->pid, \
+	(irqs_disabled()?'d':'.'),                                                   \
+	(need_resched()?'N':'.'),                                                    \
+	intr,                                                                        \
+	(preempt_count() && 0xff),                                                   \
+	__func__                                                                     \
+	);                                                                           \
 } while (0)
 #endif
-#endif
+
 /*
  * Interesting:
  * Above, I had to change the smp_processor_id() to raw_smp_processor_id(); else,
