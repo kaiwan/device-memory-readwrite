@@ -21,7 +21,7 @@
 #include <asm/byteorder.h>
 #include <asm/io.h>
 #include <linux/cdev.h>
-#include <linux/debugfs.h>
+//#include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/init.h>
@@ -42,7 +42,7 @@
 #include <asm/uaccess.h>
 #endif
 
-struct dentry *setup_debugfs_entries(void);
+//struct dentry *setup_debugfs_entries(void);
 
 dev_t rw_dev_number;
 struct rw_dev {
@@ -51,7 +51,7 @@ struct rw_dev {
 } *rw_devp;
 static void __iomem *iobase;
 
-static struct dentry *dbgfs_parent;
+//static struct dentry *dbgfs_parent;
 static DEFINE_MUTEX(mtx);
 
 //-------------- Module params
@@ -130,7 +130,7 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 			goto rdm_out_kfree_1;
 		}
 
-		pr_debug("pst_rdm=%p addr: %p buf=%p len=%d flag=%d\n\n",
+		pr_debug("pst_rdm=%px addr: %px buf=%px len=%d flag=%d\n\n",
 			 (void *)pst_rdm, (void *)pst_rdm->addr,
 			 (void *)pst_rdm->buf, pst_rdm->len, pst_rdm->flag);
 
@@ -166,7 +166,7 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 #else
 		if (USE_IOBASE == pst_rdm->flag) {	// offset relative to iobase address passed
 			pr_debug
-			    ("dest:tmpbuf=%p src:(iobase+pst_rdm->addr)=%p pst_rdm->len=%d\n",
+			    ("dest:tmpbuf=%px src:(iobase+pst_rdm->addr)=%px pst_rdm->len=%d\n",
 			     tmpbuf, (iobase + pst_rdm->addr), pst_rdm->len);
 			memcpy_fromio(tmpbuf, (iobase + pst_rdm->addr), pst_rdm->len);
 		} else {	// absolute (virtual) address passed
@@ -236,8 +236,8 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 			retval = -EFAULT;
 			goto wrm_out_kfree_1;
 		}
-		pr_debug("addr/offset: 0x%x val=0x%x\n", (unsigned int)pst_wrm->addr,
-			 (unsigned int)pst_wrm->val);
+		pr_debug("addr/offset: 0x%lx val=0x%lx\n", pst_wrm->addr,
+			 pst_wrm->val);
 
 		//---------Critical section BEGIN: save & turn off interrupts
 		local_irq_save(flags);
@@ -380,18 +380,18 @@ static void chardev_unregister(void)
 
 static int perform_registration(void)
 {
-	int res;
+	int res = 0;
 
 	res = chardev_registration();
 	if (res)
 		return res;
 
-	res = 0;
+	/*res = 0;
 	dbgfs_parent = setup_debugfs_entries();
 	if (!dbgfs_parent) {
 		pr_alert("debugfs setup failed, aborting...\n");
 		res = PTR_ERR(dbgfs_parent);
-	}
+	}*/
 	return res;
 }
 
@@ -427,7 +427,7 @@ static int __init rwmem_init_module(void)
 		release_mem_region(iobase_start, iobase_len);
 		return -ENXIO;	//PTR_ERR(iobase);
 	}
-	pr_debug("iobase = %p\n", (void *)iobase);
+	pr_debug("iobase = %px\n", (void *)iobase);
 
 	// All ok; register the driver and setup debugfs hooks...
 	return perform_registration();
@@ -435,7 +435,7 @@ static int __init rwmem_init_module(void)
 
 static void __exit rwmem_cleanup_module(void)
 {
-	debugfs_remove_recursive(dbgfs_parent);
+	//debugfs_remove_recursive(dbgfs_parent);
 	chardev_unregister();
 	if (iobase_start) {
 		iounmap(iobase);

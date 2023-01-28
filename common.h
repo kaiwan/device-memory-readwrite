@@ -4,7 +4,7 @@
  * Project home: 
  * http://github.com/kaiwan/device-memory-readwrite/
  *
- * Pl see detailed usage Wiki page here:
+ * Pl see detailed usage doc here:
  * https://github.com/kaiwan/device-memory-readwrite/blob/master/Devmem_HOWTO.pdf
  *
  * For rdmem/wrmem utility.
@@ -252,99 +252,46 @@ int uaddr_valid(volatile unsigned long addr)
 	return 0;
 }
 
-#include <mntent.h>
-char *find_debugfs_mountpt(void)
-{
-	/* Ref:
-	 * http://stackoverflow.com/questions/9280759/linux-function-to-get-mount-points
-	 */
-	struct mntent *ent;
-	FILE *fp;
-	char *ret = NULL;
-
-	fp = setmntent("/proc/mounts", "r");
-	if (NULL == fp) {
-		perror("setmntent");
-		exit(1);
-	}
-	while (NULL != (ent = getmntent(fp))) {
-		char *s1 = ent->mnt_fsname;
-		if (0 == strncmp(s1, "debugfs", 7)) {
-			ret = ent->mnt_dir;
-			break;
-		}
-	}
-	endmntent(fp);
-	return ret;
-}
-
 /*
- * debugfs_get_page_offset_val()
- *
- * @outval : the value-result parameter (pass-by-ref) that will hold the 
- *           result value
- *
- * Query the 'devmem_rw' debugfs "file" (this has been setup by the devmem_rw
- * driver on init..).
- * Thus it's now arch and kernel ver independent!
- * Of course, implies DEBUGFS is enabled within the kernel (usually the case).
+ * Using the value PAGE_OFFSET to determine the start of kernel VA is ONLY valid
+ * on 32-bit... On 64-bit, the kernel VAS can begin before PAGE_OFFSET (use the
+ * procmap util to verify this).
+ * So, let's base this routine on /proc/pid/maps; take the highest valid UVA there
+ * and check against it...
+ * Ret: 1 => it is a valid user addr
+ *      0 => it's not a valid user addr
+ *     -1 => this routine failed
  */
-int debugfs_get_page_offset_val(unsigned long long *outval)
+int is_user_address(volatile unsigned long long addr)
 {
-	int fd, MAX2READ = 16;
-	char *debugfs_mnt = find_debugfs_mountpt();
-	char *dbgfs_file = malloc(PATH_MAX);
-	char buf[MAX2READ + 1];
+	char *cmd = "head -n -1 /proc/self/maps|tail -n1|awk '{print $1}'|cut -d'-' -f2";
+	FILE *fp;
+#define SZ2  20
+	char res[SZ2];
+	unsigned long long high_uva;
 
-	if (!debugfs_mnt) {
-		fprintf(stderr, "%s: fetching debugfs mount point failed, aborting...",
-			__func__);
-		free(dbgfs_file);
+	memset(res, 0, SZ2);
+	fp = popen(cmd, "r");
+	if (!fp) {
+		WARN("popen failed\n");
 		return -1;
 	}
-	assert(dbgfs_file);
-	snprintf(dbgfs_file, PATH_MAX, "%s/%s/get_page_offset", debugfs_mnt,
-		 DRVNAME);
-	MSG("dbgfs_file: %s\n", dbgfs_file);
-
-	if ((fd = open(dbgfs_file, O_RDONLY)) == -1) {
-		WARN("rdmem: open dbgfs_file");
-		free(dbgfs_file);
+	if (!fgets(res, SZ2-1, fp)) {
+		WARN("fgets failed\n");
+		pclose(fp);
 		return -1;
 	}
-	memset(buf, 0, MAX2READ + 1);
-	if (read(fd, buf, MAX2READ) == -1) {
-		perror("rdmem: read dbgfs_file");
-		close(fd);
-		free(dbgfs_file);
+	pclose(fp);
+	MSG("res = %s\n", res);
+
+	if (res[0] == '\0')
 		return -1;
-	}
-	close(fd);
-
-	if (!strncmp(buf, "-unknown-", 9)) {
-		fprintf(stderr, "%s: fetching page offset from debugfs failed, aborting...",
-			__func__);
-		free(dbgfs_file);
-		return -1;
-	}
-	*outval = strtoull(buf, 0, 16);
-
-	free(dbgfs_file);
-	return 0;
-}
-
-int is_user_address(volatile unsigned long addr)
-{
-	unsigned long long page_offset;
-	int stat = debugfs_get_page_offset_val(&page_offset);
-
-	if (stat < 0)
-		FATAL("failed to get page offset value from kernel, aborting...\n");
-	MSG("page_offset = 0x%16llx\n", page_offset);
-
-	if (addr < page_offset)
+	high_uva = strtoull(res, 0, 16);
+	MSG("high_uva = 0x%016llx, addr=0x%016llx\n", high_uva, addr);
+	if (addr <= high_uva)
 		return 1;
-	return 0;
+	else
+		return 0;
 }
 
 /* 
@@ -421,7 +368,6 @@ void hex_dump(unsigned char *data, int size, char *caption, int verbose)
 	if (j != 0)
 		printf("%s", buffer);
 }
-#endif
 
 const char usage_warning_msg[] = "NOTE: You MUST realize that providing an invalid address, or \
 even, a valid address that's within a sparse (empty) region of virtual address space \
