@@ -55,7 +55,8 @@ int main(int argc, char **argv)
 " memory offset or address to write to (HEX).\n"
 "\n"
 "value: required parameter:\n"
-" data to write to above address/offset (4 bytes) (HEX).\n", argv[0]);
+" data to write to above address/offset (4 bytes) (HEX).\n"
+ "\n%s\n", argv[0], usage_warning_msg);
 		exit(1);
 	}
 

@@ -423,4 +423,8 @@ void hex_dump(unsigned char *data, int size, char *caption, int verbose)
 }
 #endif
 
+const char usage_warning_msg[] = "NOTE: You MUST realize that providing an invalid address, or \
+even, a valid address that's within a sparse (empty) region of virtual address space \
+WILL cause bugs. Be warned!";
+#endif
 #endif

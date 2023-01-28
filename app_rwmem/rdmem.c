@@ -12,7 +12,7 @@
  * Pl see detailed overview and usage PDF doc here:
  * https://github.com/kaiwan/device-memory-readwrite/blob/master/Devmem_HOWTO.pdf
  * 
- * License: GPL v2.
+ * License: MIT
  * Author: Kaiwan N Billimoria
  *         kaiwanTECH.
  */
@@ -42,8 +42,9 @@ offset -or- address : required parameter:\n\
 len: optional parameter:\n\
  length : number of items to read. Default = 4 bytes (HEX)\n"
  " Restrictions: length must be in the range [%d-%d] and\n"
- " a power of 2 (if not, it will be auto rounded-up to the next ^2).\n",
-	name, MIN_LEN, MAX_LEN);
+ " a power of 2 (if not, it will be auto rounded-up to the next ^2).\n"
+ "\n%s\n",
+	name, MIN_LEN, MAX_LEN, usage_warning_msg);
 }
 
 int main(int argc, char **argv)
@@ -98,6 +99,7 @@ int main(int argc, char **argv)
 		st_rdm.addr = strtoull(argv[1], 0, 16);
 	}
 
+	// check that the conversion via strtoull()'s fine
 	if ((errno == ERANGE
 	     && (st_rdm.addr == ULONG_MAX || (long long int)st_rdm.addr == LLONG_MIN))
 	    || (errno != 0 && st_rdm.addr == 0)) {
@@ -120,12 +122,14 @@ int main(int argc, char **argv)
 		if (is_user_address(st_rdm.addr)) {
 			if (uaddr_valid(st_rdm.addr) == -1) {
 				fprintf(stderr,
-				"%s: the (usermode virtual) address passed (%p) seems to be invalid. Aborting...\n",
+			"%s: the (usermode virtual) address passed (%p) seems to be invalid. Aborting...\n",
 				argv[0], (void *)st_rdm.addr);
 				close(fd);
 				exit(1);
 			}
-		}
+			MSG("addr is a valid user-mode addr\n");
+		} else
+			MSG("addr is Not a user-mode addr\n");
 	}
 	MSG("2 offset? %s; st_rdm.addr=%p\n",
 	    (st_rdm.flag == USE_IOBASE ? "yes" : "no"), (void *)st_rdm.addr);
