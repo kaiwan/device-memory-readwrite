@@ -14,3 +14,8 @@ This project can be useful for driver authors, kernel developers, etc who want t
 for prototyping purposes, learning, debug, testing, register lookups/writes and similar purposes.
 
 To get started, please clone the git tree, read the 'Devmem HOWTO.pdf' PDF document, and get to it!
+TIP:
+Use the procmap utility to see the entire virtual address space of any process alive, including that
+of the kernel! You can then provide such addresses as input, provided, of course, that they're valid
+(not within a sparse or empty region of VAS).
+procmap: https://github.com/kaiwan/procmap .
