@@ -157,9 +157,8 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 			    ("dest:tmpbuf=%px src:(iobase+pst_rdm->addr)=%px pst_rdm->len=%d\n",
 			     tmpbuf, (iobase + pst_rdm->addr), pst_rdm->len);
 			memcpy_fromio(tmpbuf, (iobase + pst_rdm->addr), pst_rdm->len);
-		} else {	// absolute (virtual) address passed
+		} else	// absolute (virtual) address passed
 			memcpy_fromio(tmpbuf, (void *)pst_rdm->addr, pst_rdm->len);
-		}
 		// print_hex_dump_bytes ("", DUMP_PREFIX_OFFSET, tmpbuf, pst_rdm->len);
 #endif
 		local_irq_restore(flags);
