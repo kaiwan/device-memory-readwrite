@@ -39,7 +39,7 @@
 #endif
 
 #define MIN_LEN 		4
-#define MAX_LEN			128*1024 // 128Kb (arbit)..
+#define MAX_LEN			16*1024*1024
 
 #define RW_MINOR_START     0
 #define RW_COUNT           1

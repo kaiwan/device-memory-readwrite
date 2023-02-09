@@ -32,6 +32,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include <linux/mm.h>  // kvmalloc()
 
 // copy_[to|from]_user()
 #include <linux/version.h>
@@ -123,7 +124,7 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 			 (void *)pst_rdm, (void *)pst_rdm->addr,
 			 (void *)pst_rdm->buf, pst_rdm->len, pst_rdm->flag);
 
-		kbuf = kmalloc(pst_rdm->len, GFP_KERNEL);
+		kbuf = kvzalloc(pst_rdm->len, GFP_KERNEL);
 		if (!kbuf) {
 			retval = -ENOMEM;
 			goto rdm_out_kfree_1;
@@ -132,7 +133,7 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 		// pr_debug ("kbuf=0x%x pst_rdm=0x%x\n", (unsigned int)kbuf, (unsigned
 		// int)pst_rdm);
 
-		tmpbuf = kmalloc(pst_rdm->len, GFP_KERNEL);
+		tmpbuf = kvzalloc(pst_rdm->len, GFP_KERNEL);
 		if (!tmpbuf) {
 			retval = -ENOMEM;
 			goto rdm_out_kfree_2;
@@ -184,9 +185,9 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 		retval = pst_rdm->len;
 
  rdm_out_kfree_3:
-		kfree(tmpbuf);
+		kvfree(tmpbuf);
  rdm_out_kfree_2:
-		kfree(kbuf);
+		kvfree(kbuf);
  rdm_out_kfree_1:
 		kfree(pst_rdm);
  rdm_out_unlock:
