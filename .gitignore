@@ -1,0 +1,12 @@
+*.o
+*.ko
+*.mod*
+*.mod.*
+.Module*
+.*
+log*
+tags
+cscope*
+modules.order
+Module.*
+bkp/
