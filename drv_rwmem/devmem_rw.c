@@ -120,7 +120,7 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 			goto rdm_out_kfree_1;
 		}
 
-		pr_debug("pst_rdm=%px addr: %px buf=%px len=%d flag=%d\n\n",
+		pr_debug("pst_rdm=%px addr: %px buf=%px len=%u flag=%d\n\n",
 			 (void *)pst_rdm, (void *)pst_rdm->addr,
 			 (void *)pst_rdm->buf, pst_rdm->len, pst_rdm->flag);
 
@@ -154,7 +154,7 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 #else
 		if (pst_rdm->flag == USE_IOBASE) {	// offset relative to iobase address passed
 			pr_debug
-			    ("dest:tmpbuf=%px src:(iobase+pst_rdm->addr)=%px pst_rdm->len=%d\n",
+			    ("dest:tmpbuf=%px src:(iobase+pst_rdm->addr)=%px pst_rdm->len=%u\n",
 			     tmpbuf, (iobase + pst_rdm->addr), pst_rdm->len);
 			memcpy_fromio(tmpbuf, (iobase + pst_rdm->addr), pst_rdm->len);
 		} else	// absolute (virtual) address passed
@@ -167,7 +167,7 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 		memcpy(kbuf, tmpbuf, pst_rdm->len);
 
 #ifdef DEBUG
-		print_hex_dump_bytes("kbuf: ", DUMP_PREFIX_OFFSET, kbuf, pst_rdm->len);
+//		print_hex_dump_bytes("kbuf: ", DUMP_PREFIX_OFFSET, kbuf, pst_rdm->len);
 #endif
 
 	/* ARM* requires :

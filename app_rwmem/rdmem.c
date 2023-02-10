@@ -40,7 +40,7 @@ offset -or- address : required parameter:\n\
  start offset or address to read memory from (HEX).\n\
 \n\
 len: optional parameter:\n\
- length : number of items to read. Default = 4 bytes (HEX)\n"
+ length : number of items to read. Default = 4 bytes\n"
  " Restrictions: length must be in the range [%d-%d] and\n"
  " a power of 2 (if not, it will be auto rounded-up to the next ^2).\n"
  "\n%s\n",
@@ -136,16 +136,16 @@ int main(int argc, char **argv)
 
 	/* Length is number of "items" to read of size "date_type" each.
 	   Restrictions:
-	   - should be in the range [MIN_LEN to MAX_LEN] [curr 4 - 131072]
-	   - should be a power of 2. If not, it will be rounded up to the next power of 2.
+	   - should be in the range [MIN_LEN to MAX_LEN] [curr 4 - 16M]
+	//	   - should be a power of 2. If not, it will be rounded up to the next power of 2.
 	 */
-	st_rdm.len = sizeof(int);
+	st_rdm.len = sizeof(unsigned int);
 	errno = 0;
 	if (argc == 3) {	// either: (addr and length specified) OR ('-o' and offset) specified
 		if (st_rdm.flag != USE_IOBASE)	// '-o' NOT passed and length specified
-			st_rdm.len = strtol(argv[2], 0, 16);
+			st_rdm.len = strtol(argv[2], 0, 0);
 	} else if (argc == 4) {	// -o passed and length specified
-		st_rdm.len = strtol(argv[3], 0, 16);
+		st_rdm.len = strtol(argv[3], 0, 0);
 	}
 	if ((errno == ERANGE
 	     && (st_rdm.addr == ULONG_MAX || (long long int)st_rdm.addr == LLONG_MIN))
@@ -158,7 +158,7 @@ int main(int argc, char **argv)
 		close(fd);
 		exit(1);
 	}
-	st_rdm.len = roundup_powerof2(st_rdm.len);
+//	st_rdm.len = roundup_powerof2(st_rdm.len);
 	MSG("final: len=%d\n", st_rdm.len);
 
 	st_rdm.buf = (unsigned char *)calloc(st_rdm.len, sizeof(unsigned char));
@@ -178,7 +178,7 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	//void hex_dump(char *data, int size, char *caption, int verbose)
+	//void hex_dump(char *data, unsigned int size, char *caption, int verbose)
 	hex_dump(st_rdm.buf, st_rdm.len, "MemDump", 0);
 	free(st_rdm.buf);
 	close(fd);

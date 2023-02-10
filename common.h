@@ -55,7 +55,7 @@
 typedef struct _ST_RDM {
 	volatile unsigned long addr;
 	unsigned char *buf;
-	int len;
+	unsigned int len; // [0-4G] range
 	int flag;
 } ST_RDM, *PST_RDM;
 
@@ -258,12 +258,13 @@ int uaddr_valid(volatile unsigned long addr)
  * procmap util to verify this).
  * So, let's base this routine on /proc/pid/maps; take the highest valid UVA there
  * and check against it...
- * Ret: 1 => it is a valid user addr
+ * Ret: 1 => it is a (seemingly) valid user addr
  *      0 => it's not a valid user addr
  *     -1 => this routine failed
  */
 int is_user_address(volatile unsigned long long addr)
 {
+	// get the high uva
 	char *cmd = "head -n -1 /proc/self/maps|tail -n1|awk '{print $1}'|cut -d'-' -f2";
 	FILE *fp;
 #define SZ2  20
@@ -317,9 +318,9 @@ All rights rest with original author(s).----------------------
 
 Added a 'verbose' parameter..(kaiwan).
 */
-void hex_dump(unsigned char *data, int size, char *caption, int verbose)
+void hex_dump(unsigned char *data, unsigned int size, char *caption, int verbose)
 {
-	int i;			// index in data...
+	unsigned int i;		// index in data...
 	int j;			// index in line...
 	char temp[10];
 	char buffer[128];
@@ -336,7 +337,7 @@ void hex_dump(unsigned char *data, int size, char *caption, int verbose)
 	    ("        +0          +4          +8          +c            0   4   8   c   \n");
 
 	// Hex portion of the line is 8 (the padding) + 3 * 16 = 52 chars long
-	// We add another four bytes padding and place the ASCII version...
+	// We add another four bytes padding and place the corresponding ASCII chars...
 	ascii = buffer + 58;
 	memset(buffer, ' ', 58 + 16);
 	buffer[58 + 16] = '\n';
@@ -351,7 +352,8 @@ void hex_dump(unsigned char *data, int size, char *caption, int verbose)
 			printf("%s", buffer);
 			memset(buffer, ' ', 58 + 16);
 
-			sprintf(temp, "+%04x", i);
+			sprintf(temp, "+%04u", i);
+			//sprintf(temp, "+%04x", i);
 			memcpy(buffer, temp, 5);
 
 			j = 0;
@@ -359,7 +361,7 @@ void hex_dump(unsigned char *data, int size, char *caption, int verbose)
 
 		sprintf(temp, "%02x", 0xff & data[i]);
 		memcpy(buffer + 8 + (j * 3), temp, 2);
-		if ((data[i] > 31) && (data[i] < 127))
+		if ((data[i] > 31) && (data[i] < 127)) // valid ASCII char (space to '~')
 			ascii[j] = data[i];
 		else
 			ascii[j] = '.';
