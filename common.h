@@ -323,10 +323,11 @@ void hex_dump(unsigned char *data, unsigned int size, char *caption, int verbose
 	unsigned int i;		// index in data...
 	int j;			// index in line...
 	char temp[10];
-	char buffer[128];
+	char buffer[80];
 	char *ascii;
 
-	memset(buffer, 0, 128);
+	memset(buffer, 0, 80);
+	memset(buffer, 0, 10);
 
 	if (verbose && caption)
 		printf("---------> %s <--------- (%d bytes from %p)\n", caption,
@@ -334,33 +335,38 @@ void hex_dump(unsigned char *data, unsigned int size, char *caption, int verbose
 
 	// Printing the ruler...
 	printf
-	    ("        +0          +4          +8          +c            0   4   8   c   \n");
+	    ("         +0          +4          +8          +c               0   4   8   c   \n");
 
-	// Hex portion of the line is 8 (the padding) + 3 * 16 = 52 chars long
-	// We add another four bytes padding and place the corresponding ASCII chars...
-	ascii = buffer + 58;
-	memset(buffer, ' ', 58 + 16);
-	buffer[58 + 16] = '\n';
-	buffer[58 + 17] = '\0';
-	buffer[0] = '+';
+	/* Hex portion of the line is 11 (the padding, as 11 chars used for the '+offset ' portion)
+	 *  + 3 * 16 = 59 chars long
+	 * We add another four bytes padding (so 63) and place the corresponding ASCII chars...
+	 */
+	ascii = buffer + 62;
+	memset(buffer, ' ', 62 + 16);
+	buffer[62 + 16] = '\n';
+	buffer[62 + 17] = '\0';
+	buffer[0] = '0';
 	buffer[1] = '0';
 	buffer[2] = '0';
 	buffer[3] = '0';
 	buffer[4] = '0';
+	buffer[5] = '0';
+	buffer[6] = '0';
+	buffer[7] = '0';
 	for (i = 0, j = 0; i < size; i++, j++) {
 		if (j == 16) {
 			printf("%s", buffer);
-			memset(buffer, ' ', 58 + 16);
+			memset(buffer, ' ', 62 + 15);
 
-			sprintf(temp, "+%04u", i);
+			sprintf(temp, "%08u", i);
 			//sprintf(temp, "+%04x", i);
-			memcpy(buffer, temp, 5);
+			memcpy(buffer, temp, 8);
 
 			j = 0;
 		}
 
 		sprintf(temp, "%02x", 0xff & data[i]);
-		memcpy(buffer + 8 + (j * 3), temp, 2);
+		memcpy(buffer + 9 + (j * 3), temp, 2);
 		if ((data[i] > 31) && (data[i] < 127)) // valid ASCII char (space to '~')
 			ascii[j] = data[i];
 		else
