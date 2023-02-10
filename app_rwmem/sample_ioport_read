@@ -1,0 +1,12 @@
+#!/bin/bash
+# kbd scan codes: https://www.win.tue.nl/~aeb/linux/kbd/scancodes-1.html
+echo "Keep reading x86 i8042 IO ports 0x60 and 0x64 ..."
+while [ true ]
+do
+	echo
+	echo ">>> kbd DATA reg:"
+	sudo ./rdmem -p -b 0x60 1
+	echo ">>> kbd STATUS/CMD reg (STATUS when read, CMD when written):"
+	sudo ./rdmem -p -b 0x64 1
+	sleep 5
+done
