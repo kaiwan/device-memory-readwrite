@@ -27,50 +27,117 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
+#include <sys/io.h>   // ioports
 
 static void usage(char *name)
 {
 	fprintf(stderr, "\
-Usage: %s [-o] <address/offset> [len]\n\
-[-o]: optional parameter:\n\
+Usage:\n\
+Read RAM memory or MMIO address range:\n\
+       %s [-o] <address/offset> [len]\n\
+ [-o]: optional parameter:\n\
  : '-o' present implies the next parameter is an OFFSET and NOT an absolute address [HEX]\n\
  (this is the typical usage for looking at hardware registers that are offset from an IO base..)\n\
  : absence of '-o' implies that the next parameter is an ADDRESS [HEX]\n\
 offset -or- address : required parameter:\n\
  start offset or address to read memory from (HEX).\n\
 \n\
-len (length): optional parameter:\n\
- Number of items to read. Default = 4 bytes\n"
+ -OR-\n\
+\n\
+Read IO port (or PIO) address range:\n\
+       %s -p <-b|-w|-l> <ioport_address> [len]\n\
+Based on the port width, pass the appropriate number of items to read (len)\n\
+F.e.: the typical i8042 keyboard/mouse controller port on x86 systems:\n\
+ 0060-0060 : keyboard\n\
+ 0064-0064 : keyboard\n\
+So, to read it with:\n\
+  byte-width, do: sudo ./rdmem -p -b 0x60 4\n\
+  word-width, do: sudo ./rdmem -p -w 0x60 2\n\
+  long-width, do: sudo ./rdmem -p -l 0x60 1\n\
+\n\
+len (length): common optional parameter:\n\
+ Number of items to read. Default = 4 bytes for MMIO, 1 item for PIO\n"
  " Must be in the range [%d-%d] bytes.\n"
  "\n%s\n"
  "\n%s\n",
-	name, MIN_LEN, MAX_LEN, usage_warning_msg, rdwrmem_tips_msg);
+	name, name, MIN_LEN, MAX_LEN, usage_warning_msg, rdwrmem_tips_msg);
 }
+
+/*
+ * ioport_read()
+ * Read and display IO port (registers) upto @ioport_len bytes from the IO
+ * port starting at @ioport
+ */
+static int ioport_read(unsigned short ioport, unsigned short ioport_width, unsigned long ioport_len)
+{
+	unsigned char *buf = NULL;
+
+	if (ioperm(0x0, 0xffff, 1) < 0) {
+		perror("ioperm failed to allow access to IO port addr space [0-0xffff] (TIP: run as root)");
+		return -1;
+	}
+	MSG("Can access all IO ports; ioport = 0x%x (%u)\n", ioport, ioport);
+	printf("Value currently at IO port 0x%x (%u), width %u bits, for %lu bytes:\n",
+		ioport, ioport, ioport_width, ioport_len);
+
+	// void ins{b|w|l}(unsigned short port, void *addr,
+        //        unsigned long count);
+	if (ioport_width == 8) {
+		buf = calloc(ioport_len, sizeof(unsigned char));
+		if (!buf)
+			goto out_memfail;
+		insb(ioport, buf, ioport_len);
+	} else if (ioport_width == 16) {
+		ioport_len *= 2;
+		buf = calloc(ioport_len, sizeof(unsigned char));
+		if (!buf)
+			goto out_memfail;
+		insw(ioport, buf, ioport_len);
+	} else if (ioport_width == 32) {
+		ioport_len *= 4;
+		buf = calloc(ioport_len, sizeof(unsigned char));
+		if (!buf)
+			goto out_memfail;
+		insl(ioport, buf, ioport_len);
+	}
+
+	//void hex_dump(unsigned char *data, unsigned int size, char *caption, int verbose)
+	hex_dump(buf, ioport_len, "IO port content", 1);
+	free(buf);
+	return 0;
+out_memfail:
+	fprintf(stderr, "Out of memory!\n");
+	return -2;
+}
+
 
 int main(int argc, char **argv)
 {
 	int fd;
 	ST_RDM st_rdm;
+	unsigned short ioport = 0, ioport_width = 8;
+	unsigned long ioport_len = 1;
 
 	if (syscheck() == -1) {
 		fprintf(stderr, "%s: System check failed, aborting..\n"
 			"(As of now, this implies you do not have udev support\n"
 			"This project requires the kernel and userspace to support udev).\n",
 			argv[0]);
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 	if (0 != geteuid()) {
 		fprintf(stderr, "%s: This app requires root access.\n",
 			argv[0]);
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 #ifdef DEBUG
 	// to allow testing of rdmem / wrmem for usermode virtual addresses (uva's)
 	memtest();
 #endif
+
 	if (argc < 2) {
 		usage(argv[0]);
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 
 // TODO- clean up the bloody mess with args processing!
@@ -81,7 +148,51 @@ int main(int argc, char **argv)
 			"%s -o8  <-- WRONG\n" "%s -o 8  <-- RIGHT\n\n", argv[0],
 			argv[0], argv[0]);
 		usage(argv[0]);
-		exit(1);
+		exit(EXIT_FAILURE);
+	} else if (!strncmp(argv[1], "-p", 2)) { //===== IO port address specified
+		if (argc < 4) {
+			usage(argv[0]);
+			exit(EXIT_FAILURE);
+		}
+		// arg 2 : get IOport read width
+		if (strlen(argv[2]) > 2) {
+			fprintf(stderr, "%s: Invalid IO port width (valid values are -b or -w or -l).\n",
+				argv[0]);
+			exit(EXIT_FAILURE);
+		}
+		if (!strncmp(argv[2], "-b", 2))
+			ioport_width = 8;
+		else if (!strncmp(argv[2], "-w", 2))
+			ioport_width = 16;
+		else if (!strncmp(argv[2], "-l", 2))
+			ioport_width = 32;
+		else {
+			fprintf(stderr, "%s: Invalid IO port width (valid values are -b or -w or -l).\n",
+				argv[0]);
+			exit(EXIT_FAILURE);
+		}
+
+		// arg 3 : get IOport number
+		errno = 0;
+		ioport = strtoul(argv[3], 0, 0);
+		if (errno)
+			goto strtox_err;
+		if (argc == 5) {
+			// arg 4 : get IOport length to read
+			errno = 0;
+			ioport_len = strtoul(argv[4], 0, 0);
+			if (errno)
+				goto strtox_err;
+			if ((ioport_len < MIN_LEN_IOPORT) || (ioport_len > MAX_LEN_IOPORT)) {
+				fprintf(stderr, "%s: Invalid IO port length (valid range: [%d-%d]).\n",
+					argv[0], MIN_LEN_IOPORT, MAX_LEN_IOPORT);
+				exit(EXIT_FAILURE);
+			}
+		}
+		// whew
+		if (ioport_read(ioport, ioport_width, ioport_len) < 0)
+			exit(EXIT_FAILURE);
+		exit(EXIT_SUCCESS);
 	}
 
 	// Init the rdm structure
@@ -90,7 +201,7 @@ int main(int argc, char **argv)
 	if ((fd = open(DEVICE_FILE, O_RDONLY | O_CLOEXEC, 0)) == -1) {
 		perror
 		    ("device file open failed. Driver 'devmem_rw' not loaded?");
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 
 	st_rdm.flag = !USE_IOBASE;
@@ -107,13 +218,13 @@ int main(int argc, char **argv)
 	if ((errno == ERANGE
 	     && (st_rdm.addr == ULONG_MAX || (long long int)st_rdm.addr == LLONG_MIN))
 	    || (errno != 0 && st_rdm.addr == 0)) {
- strtol_err:
-		perror("strtoll");
+ strtox_err:
+		perror("strto[u]l[l]() failed");
 		if (st_rdm.addr == ULONG_MAX)
 			printf("Ulong max\n");
 		if ((long long int)st_rdm.addr == LLONG_MIN)
 			printf("long min\n");
-		close(fd);
+		//close(fd);
 		exit(EXIT_FAILURE);
 	}
 	MSG("1 offset? %s; st_rdm.addr=%p\n",
@@ -130,7 +241,7 @@ int main(int argc, char **argv)
 			"%s\n",
 				argv[0], (void *)st_rdm.addr, rdwrmem_tips_msg);
 				close(fd);
-				exit(1);
+				exit(EXIT_FAILURE);
 			}
 			MSG("addr is a valid user-mode addr\n");
 		} else
@@ -150,18 +261,18 @@ int main(int argc, char **argv)
 		if (st_rdm.flag != USE_IOBASE)	// '-o' NOT passed and length specified
 			st_rdm.len = strtol(argv[2], 0, 0);
 	} else if (argc == 4) {	// -o passed and length specified
-		st_rdm.len = strtol(argv[3], 0, 0);
+		st_rdm.len = strtoul(argv[3], 0, 0);
 	}
 	if ((errno == ERANGE
 	     && (st_rdm.addr == ULONG_MAX || (long long int)st_rdm.addr == LLONG_MIN))
 	    || (errno != 0 && st_rdm.addr == 0))
-		goto strtol_err;
+		goto strtox_err;
 
 	if ((st_rdm.len < MIN_LEN) || (st_rdm.len > MAX_LEN)) {
 		fprintf(stderr, "%s: Invalid length (valid range: [%d-%d]).\n",
 			argv[0], MIN_LEN, MAX_LEN);
 		close(fd);
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 //	st_rdm.len = roundup_powerof2(st_rdm.len);
 	MSG("final: len=%u\n", st_rdm.len);
@@ -170,7 +281,7 @@ int main(int argc, char **argv)
 	if (!st_rdm.buf) {
 		fprintf(stderr, "Out of memory!\n");
 		close(fd);
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 
 	MSG("addr: %p buf=%p len=0x%x (%u) bytes flag=%d\n",
@@ -181,10 +292,10 @@ int main(int argc, char **argv)
 		perror("ioctl");
 		free(st_rdm.buf);
 		close(fd);
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 
-	//void hex_dump(char *data, unsigned int size, char *caption, int verbose)
+	//void hex_dump(unsigned char *data, unsigned int size, char *caption, int verbose)
 	hex_dump(st_rdm.buf, st_rdm.len, "MemDump", 0);
 	free(st_rdm.buf);
 	close(fd);
