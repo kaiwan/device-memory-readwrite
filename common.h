@@ -380,5 +380,35 @@ void hex_dump(unsigned char *data, unsigned int size, char *caption, int verbose
 const char usage_warning_msg[] = "NOTE: You MUST realize that providing an invalid address, or \
 even, a valid address that's within a sparse (empty) region of virtual address space \
 WILL cause bugs. Be warned!";
+
+const char rdwrmem_tips_msg[] = "\
+[TIP: 1. Realize that usermode va's are Always wrt *this* process only\n\
+ TIP: 2. Disabling user ASLR (Address Space Layout Randomization) can help\n\
+         To do so: sudo sh -c \"echo 0 > /proc/sys/kernel/randomize_va_space\"\n\
+ TIP: 3. Can test reading/writing userspace by disabling ASLR, running the DEBUG binary app,\n\
+         seeing and using the uva of a 5k buffer (init to 0xea)]\n\
+ TIP: 4. F.e.: to test wrmem: first disable ASLR, then do:\n\
+         $ sudo ./wrmem_dbg\n\
+         *** For Testing usermode va's (uva's) rd/wr ***\n\
+         gbuf @ 0x55555555ca80    <---\\\n\
+         [ ... ]                       |\n\
+         [ ... ]                       |\n\
+	 Now run wrmem_dbg with the uva| displayed above\n\
+	 $ sudo ./wrmem_dbg 0x55555555ca80 0x112233ee\n\
+         [ ... ]\n\
+         ---------> Write Test MemDump <--------- (4 bytes from 0x55555555ca80)\n\
+                  +0          +4          +8          +c               0   4   8   c\n\
+         00000000 ee 33 22 11                                          .3\".\n\
+	 *** Notice how, on little-endian, the output bytes show up in the 'reverse' order ***\n\
+	 *** Worry not, ASCII text shows up correctly (only integers show 'reversed')      ***\
+";
+
+static char gbuf[5120];
+void memtest(void)
+{
+	memset(gbuf, 0xea, 5120);
+	printf("*** For Testing usermode va's (uva's) rd/wr ***\ngbuf @ %p\n", gbuf);
+}
+
 #endif
 #endif

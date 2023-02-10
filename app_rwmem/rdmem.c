@@ -42,8 +42,9 @@ offset -or- address : required parameter:\n\
 len (length): optional parameter:\n\
  Number of items to read. Default = 4 bytes\n"
  " Must be in the range [%d-%d] bytes.\n"
+ "\n%s\n"
  "\n%s\n",
-	name, MIN_LEN, MAX_LEN, usage_warning_msg);
+	name, MIN_LEN, MAX_LEN, usage_warning_msg, rdwrmem_tips_msg);
 }
 
 int main(int argc, char **argv)
@@ -63,6 +64,10 @@ int main(int argc, char **argv)
 			argv[0]);
 		exit(1);
 	}
+#ifdef DEBUG
+	// to allow testing of rdmem / wrmem for usermode virtual addresses (uva's)
+	memtest();
+#endif
 	if (argc < 2) {
 		usage(argv[0]);
 		exit(1);
@@ -121,8 +126,9 @@ int main(int argc, char **argv)
 		if (is_user_address(st_rdm.addr)) {
 			if (uaddr_valid(st_rdm.addr) == -1) {
 				fprintf(stderr,
-			"%s: the (usermode virtual) address passed (%p) seems to be invalid. Aborting...\n",
-				argv[0], (void *)st_rdm.addr);
+			"%s: the (usermode virtual) address passed (%p) seems to be invalid. Aborting...\n"
+			"%s\n",
+				argv[0], (void *)st_rdm.addr, rdwrmem_tips_msg);
 				close(fd);
 				exit(1);
 			}

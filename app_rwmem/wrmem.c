@@ -44,6 +44,10 @@ int main(int argc, char **argv)
 			argv[0]);
 		exit(1);
 	}
+#ifdef DEBUG
+	// to allow testing of rdmem / wrmem for usermode virtual addresses (uva's)
+	memtest();
+#endif
 	if (argc < 3) {
 		fprintf(stderr,
 "Usage: %s [-o] <address/offset> <value>\n"
@@ -56,7 +60,9 @@ int main(int argc, char **argv)
 "\n"
 "value: required parameter:\n"
 " data to write to above address/offset (4 bytes) (HEX).\n"
- "\n%s\n", argv[0], usage_warning_msg);
+ "\n%s\n"
+ "\n%s\n",
+	argv[0], usage_warning_msg, rdwrmem_tips_msg);
 		exit(1);
 	}
 
@@ -104,8 +110,9 @@ int main(int argc, char **argv)
 		if (is_user_address(st_wrm.addr)) { 
 			if (uaddr_valid(st_wrm.addr) == -1) {
 				fprintf(stderr,
-				"%s: the (usermode virtual) address passed (%p) seems to be invalid. Aborting...\n",
-				argv[0], (void *)st_wrm.addr);
+				"%s: the (usermode virtual) address passed (%p) seems to be invalid. Aborting...\n"
+				"%s\n",
+				argv[0], (void *)st_wrm.addr, rdwrmem_tips_msg);
 				close(fd);
 				exit(1);
 			}
@@ -119,6 +126,10 @@ int main(int argc, char **argv)
 		close(fd);
 		exit(1);
 	}
+#ifdef DEBUG
+	//void hex_dump(char *data, unsigned int size, char *caption, int verbose)
+	hex_dump((unsigned char *)st_wrm.addr, 4, "Write Test MemDump", 1);
+#endif
 
 	close(fd);
 	return 0;
