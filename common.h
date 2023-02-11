@@ -379,7 +379,7 @@ void hex_dump(unsigned char *data, unsigned int size, char *caption, int verbose
 		printf("%s", buffer);
 }
 
-const char usage_warning_msg[] = "NOTE: You MUST realize that providing an invalid address or IO port, or \
+const char usage_warning_msg[] = "NOTE: You MUST realize that providing an invalid address (or, on x86, IO port), or \
 even, a valid address that's within a sparse (empty) region of virtual address space \
 WILL cause bugs. Be warned!";
 

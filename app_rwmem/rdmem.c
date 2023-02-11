@@ -27,9 +27,12 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
+#ifdef CONFIG_X86_64
 #include <sys/io.h>   // ioports
+#endif
 
-static void usage(char *name)
+
+static void usage_x86_64(char *name)
 {
 	fprintf(stderr, "\
 Usage:\n\
@@ -62,6 +65,37 @@ len (length): common optional parameter:\n\
 	name, name, MIN_LEN, MAX_LEN, usage_warning_msg, rdwrmem_tips_msg);
 }
 
+static void usage_other(char *name)
+{
+	fprintf(stderr, "\
+Usage:\n\
+Read RAM memory or MMIO address range:\n\
+   %s [-o] <address/offset> [len]\n\
+ [-o]: optional parameter:\n\
+ : '-o' present implies the next parameter is an OFFSET and NOT an absolute address [HEX]\n\
+ (this is the typical usage for peeking hardware registers that are offset from an IO base..)\n\
+ : absence of '-o' implies that the next parameter is an ADDRESS [HEX]\n\
+offset -or- address : required parameter:\n\
+ start offset or address to read memory (RAM or MMIO) from (HEX).\n\
+\n\
+len (length): common optional parameter:\n\
+ Number of items to read. Default = 4 bytes\n"
+ " Must be in the range [%d-%d] bytes.\n"
+ "\n%s\n"
+ "\n%s\n",
+	name, MIN_LEN, MAX_LEN, usage_warning_msg, rdwrmem_tips_msg);
+}
+
+static void usage(char *name)
+{
+#ifdef CONFIG_X86_64
+	usage_x86_64(name);
+#else
+	usage_other(name);
+#endif
+}
+
+#ifdef CONFIG_X86_64
 /*
  * do_ioport_read()
  * Read and display IO port (registers) upto @ioport_len bytes from the IO
@@ -162,6 +196,7 @@ static void ioport_read(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	exit(EXIT_SUCCESS);
 }
+#endif
 
 
 int main(int argc, char **argv)
@@ -190,6 +225,10 @@ int main(int argc, char **argv)
 		usage(argv[0]);
 		exit(EXIT_FAILURE);
 	}
+#ifdef CONFIG_X86_64
+	if (!strncmp(argv[1], "-p", 2)) //===== IO port address specified
+		ioport_read(argc, argv);
+#endif
 
 // TODO- clean up the bloody mess with args processing!
 	if ((!strncmp(argv[1], "-o", 2)) && argc == 2) {	// address specified as an Offset
@@ -200,8 +239,7 @@ int main(int argc, char **argv)
 			argv[0], argv[0]);
 		usage(argv[0]);
 		exit(EXIT_FAILURE);
-	} else if (!strncmp(argv[1], "-p", 2)) //===== IO port address specified
-		ioport_read(argc, argv);
+	}
 
 	// Init the rdm structure
 	memset(&st_rdm, 0, sizeof(ST_RDM));
