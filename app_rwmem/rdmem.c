@@ -27,9 +27,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
-#ifdef CONFIG_X86_64
-#include <sys/io.h>   // ioports
-#endif
 
 
 static void usage_x86_64(char *name)
@@ -88,14 +85,16 @@ len (length): common optional parameter:\n\
 
 static void usage(char *name)
 {
-#ifdef CONFIG_X86_64
+#ifdef __x86_64__
 	usage_x86_64(name);
 #else
 	usage_other(name);
 #endif
 }
 
-#ifdef CONFIG_X86_64
+//----------------- IO Ports Reading (PIO) ----------------------------
+#ifdef __x86_64__
+#include <sys/io.h>   // ioports
 /*
  * do_ioport_read()
  * Read and display IO port (registers) upto @ioport_len bytes from the IO
@@ -225,7 +224,7 @@ int main(int argc, char **argv)
 		usage(argv[0]);
 		exit(EXIT_FAILURE);
 	}
-#ifdef CONFIG_X86_64
+#ifdef __x86_64__
 	if (!strncmp(argv[1], "-p", 2)) //===== IO port address specified
 		ioport_read(argc, argv);
 #endif
