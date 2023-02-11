@@ -63,11 +63,11 @@ len (length): common optional parameter:\n\
 }
 
 /*
- * ioport_read()
+ * do_ioport_read()
  * Read and display IO port (registers) upto @ioport_len bytes from the IO
  * port starting at @ioport
  */
-static int ioport_read(unsigned short ioport, unsigned short ioport_width, unsigned long ioport_len)
+static int do_ioport_read(unsigned short ioport, unsigned short ioport_width, unsigned long ioport_len)
 {
 	unsigned char *buf = NULL;
 
@@ -81,18 +81,18 @@ static int ioport_read(unsigned short ioport, unsigned short ioport_width, unsig
 
 	// void ins{b|w|l}(unsigned short port, void *addr,
         //        unsigned long count);
-	if (ioport_width == 8) {
+	if (ioport_width == 8) { // byte-wide '-b'
 		buf = calloc(ioport_len, sizeof(unsigned char));
 		if (!buf)
 			goto out_memfail;
 		insb(ioport, buf, ioport_len);
-	} else if (ioport_width == 16) {
+	} else if (ioport_width == 16) { // word-wide '-w'
 		ioport_len *= 2;
 		buf = calloc(ioport_len, sizeof(unsigned char));
 		if (!buf)
 			goto out_memfail;
 		insw(ioport, buf, ioport_len);
-	} else if (ioport_width == 32) {
+	} else if (ioport_width == 32) { // long-wide '-l'
 		ioport_len *= 4;
 		buf = calloc(ioport_len, sizeof(unsigned char));
 		if (!buf)
@@ -109,13 +109,65 @@ out_memfail:
 	return -2;
 }
 
+static void ioport_read(int argc, char **argv)
+{
+	unsigned short ioport = 0, ioport_width = 8;
+	unsigned long ioport_len = 1;
+
+	if (argc < 4) {
+		usage(argv[0]);
+		exit(EXIT_FAILURE);
+	}
+	// arg 2 : get IOport read width
+	if (strlen(argv[2]) > 2) {
+		fprintf(stderr, "%s: Invalid IO port width (valid values are -b or -w or -l).\n",
+			argv[0]);
+		exit(EXIT_FAILURE);
+	}
+	if (!strncmp(argv[2], "-b", 2))
+		ioport_width = 8;
+	else if (!strncmp(argv[2], "-w", 2))
+		ioport_width = 16;
+	else if (!strncmp(argv[2], "-l", 2))
+		ioport_width = 32;
+	else {
+		fprintf(stderr, "%s: Invalid IO port width (valid values are -b or -w or -l).\n",
+			argv[0]);
+		exit(EXIT_FAILURE);
+	}
+
+	// arg 3 : get IOport number
+	errno = 0;
+	ioport = strtoul(argv[3], 0, 0);
+	if (errno) {
+		fprintf(stderr, "%s:%s(): strtoul(): range error, aborting...\n", argv[0], __func__);
+		exit(EXIT_FAILURE);
+	}
+	if (argc == 5) {
+		// arg 4 : get IOport length to read
+		errno = 0;
+		ioport_len = strtoul(argv[4], 0, 0);
+		if (errno) {
+			fprintf(stderr, "%s:%s(): strtoul(): range error, aborting...\n", argv[0], __func__);
+			exit(EXIT_FAILURE);
+		}
+		if ((ioport_len < MIN_LEN_IOPORT) || (ioport_len > MAX_LEN_IOPORT)) {
+			fprintf(stderr, "%s: Invalid IO port length (valid range: [%d-%d]).\n",
+				argv[0], MIN_LEN_IOPORT, MAX_LEN_IOPORT);
+			exit(EXIT_FAILURE);
+		}
+	}
+	// whew
+	if (do_ioport_read(ioport, ioport_width, ioport_len) < 0)
+		exit(EXIT_FAILURE);
+	exit(EXIT_SUCCESS);
+}
+
 
 int main(int argc, char **argv)
 {
 	int fd;
 	ST_RDM st_rdm;
-	unsigned short ioport = 0, ioport_width = 8;
-	unsigned long ioport_len = 1;
 
 	if (syscheck() == -1) {
 		fprintf(stderr, "%s: System check failed, aborting..\n"
@@ -148,51 +200,8 @@ int main(int argc, char **argv)
 			argv[0], argv[0]);
 		usage(argv[0]);
 		exit(EXIT_FAILURE);
-	} else if (!strncmp(argv[1], "-p", 2)) { //===== IO port address specified
-		if (argc < 4) {
-			usage(argv[0]);
-			exit(EXIT_FAILURE);
-		}
-		// arg 2 : get IOport read width
-		if (strlen(argv[2]) > 2) {
-			fprintf(stderr, "%s: Invalid IO port width (valid values are -b or -w or -l).\n",
-				argv[0]);
-			exit(EXIT_FAILURE);
-		}
-		if (!strncmp(argv[2], "-b", 2))
-			ioport_width = 8;
-		else if (!strncmp(argv[2], "-w", 2))
-			ioport_width = 16;
-		else if (!strncmp(argv[2], "-l", 2))
-			ioport_width = 32;
-		else {
-			fprintf(stderr, "%s: Invalid IO port width (valid values are -b or -w or -l).\n",
-				argv[0]);
-			exit(EXIT_FAILURE);
-		}
-
-		// arg 3 : get IOport number
-		errno = 0;
-		ioport = strtoul(argv[3], 0, 0);
-		if (errno)
-			goto strtox_err;
-		if (argc == 5) {
-			// arg 4 : get IOport length to read
-			errno = 0;
-			ioport_len = strtoul(argv[4], 0, 0);
-			if (errno)
-				goto strtox_err;
-			if ((ioport_len < MIN_LEN_IOPORT) || (ioport_len > MAX_LEN_IOPORT)) {
-				fprintf(stderr, "%s: Invalid IO port length (valid range: [%d-%d]).\n",
-					argv[0], MIN_LEN_IOPORT, MAX_LEN_IOPORT);
-				exit(EXIT_FAILURE);
-			}
-		}
-		// whew
-		if (ioport_read(ioport, ioport_width, ioport_len) < 0)
-			exit(EXIT_FAILURE);
-		exit(EXIT_SUCCESS);
-	}
+	} else if (!strncmp(argv[1], "-p", 2)) //===== IO port address specified
+		ioport_read(argc, argv);
 
 	// Init the rdm structure
 	memset(&st_rdm, 0, sizeof(ST_RDM));
