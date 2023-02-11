@@ -389,7 +389,7 @@ const char rdwrmem_tips_msg[] = "\
  TIP 2. Disabling user ASLR (Address Space Layout Randomization) can help\n\
         To do so: sudo sh -c \"echo 0 > /proc/sys/kernel/randomize_va_space\"\n\
  TIP 3. Can test reading/writing userspace by disabling ASLR, running the DEBUG binary app,\n\
-        seeing and using the uva of a 5k buffer (init to 0xea)\n\
+        seeing and using the uva of an already provided sample 5k buffer (all bytes init to 0xea)\n\
  TIP 4. F.e.: to test wrmem: first disable ASLR, then do:\n\
         $ sudo ./wrmem_dbg\n\
         *** For Testing usermode va's (uva's) rd/wr ***\n\
@@ -402,8 +402,8 @@ const char rdwrmem_tips_msg[] = "\
         ---------> Write Test MemDump <--------- (4 bytes from 0x55555555ca80)\n\
                  +0          +4          +8          +c               0   4   8   c\n\
         00000000 ee 33 22 11                                          .3\".\n\
- *** Notice how, on little-endian, the output bytes show up in the 'reverse' order ***\n\
- *** Worry not, ASCII text shows up correctly (only integers show 'reversed')]     ***\
+ *** Notice how, on little-endian, the displayed bytes show up in the 'reverse' order ***\n\
+ *** Worry not, ASCII text shows up correctly (only integers show 'reversed')         ***]\
 ";
 
 static char gbuf[5120];

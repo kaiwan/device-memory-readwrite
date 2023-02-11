@@ -34,26 +34,25 @@ static void usage(char *name)
 	fprintf(stderr, "\
 Usage:\n\
 Read RAM memory or MMIO address range:\n\
-       %s [-o] <address/offset> [len]\n\
+   %s [-o] <address/offset> [len]\n\
  [-o]: optional parameter:\n\
  : '-o' present implies the next parameter is an OFFSET and NOT an absolute address [HEX]\n\
- (this is the typical usage for looking at hardware registers that are offset from an IO base..)\n\
+ (this is the typical usage for peeking hardware registers that are offset from an IO base..)\n\
  : absence of '-o' implies that the next parameter is an ADDRESS [HEX]\n\
 offset -or- address : required parameter:\n\
- start offset or address to read memory from (HEX).\n\
+ start offset or address to read memory (RAM or MMIO) from (HEX).\n\
 \n\
  -OR-\n\
 \n\
-Read IO port (or PIO) address range:\n\
-       %s -p <-b|-w|-l> <ioport_address> [len]\n\
-Based on the port width, pass the appropriate number of items to read (len)\n\
-F.e.: the typical i8042 keyboard/mouse controller port on x86 systems:\n\
- 0060-0060 : keyboard\n\
- 0064-0064 : keyboard\n\
-So, to read it with:\n\
-  byte-width, do: sudo ./rdmem -p -b 0x60 4\n\
-  word-width, do: sudo ./rdmem -p -w 0x60 2\n\
-  long-width, do: sudo ./rdmem -p -l 0x60 1\n\
+Read IO port (PIO) address range:\n\
+   %s -p <-b|-w|-l> <ioport_address> [len]\n\
+Based on the port width, pass the appropriate number of items to read (len).\n\
+F.e.: the typical timer0 IO port registers on x86 systems are:\n\
+ 0040-0043 : timer0     (i.e. ioport locations 0x40, 0x41, 0x42, 0x43)\n\
+So, reading it with different widths:\n\
+  byte-width: sudo ./rdmem -p -b 0x40 4     # reads 4 items of 1 byte\n\
+  word-width: sudo ./rdmem -p -w 0x40 2     # reads 2 items of 2 bytes\n\
+  long-width: sudo ./rdmem -p -l 0x40 1     # reads 1 item of 4 bytes\n\
 \n\
 len (length): common optional parameter:\n\
  Number of items to read. Default = 4 bytes for MMIO, 1 item for PIO\n"
