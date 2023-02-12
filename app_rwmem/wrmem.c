@@ -37,12 +37,12 @@ int main(int argc, char **argv)
 			"(As of now, this implies you do not have udev support\n"
 			"This project requires the kernel and userspace to support udev).\n",
 			argv[0]);
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 	if (0 != geteuid()) {
 		fprintf(stderr, "%s: This app requires root access.\n",
 			argv[0]);
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 #ifdef DEBUG
 	// to allow testing of rdmem / wrmem for usermode virtual addresses (uva's)
@@ -63,7 +63,7 @@ int main(int argc, char **argv)
  "\n%s\n"
  "\n%s\n",
 	argv[0], usage_warning_msg, rdwrmem_tips_msg);
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 
 	// Init the wrm structure
@@ -71,7 +71,7 @@ int main(int argc, char **argv)
 
 	if ((fd = open(DEVICE_FILE, O_RDWR | O_CLOEXEC, 0)) == -1) {
 		perror("device file open failed. Driver 'rwmem' not loaded?");
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 
 	st_wrm.flag = !USE_IOBASE;
@@ -89,7 +89,7 @@ int main(int argc, char **argv)
 		perror("strtoll addr");
 		exit(EXIT_FAILURE);
 	}
-	MSG("addr/offset = 0x%p\n", (void *)st_wrm.addr);
+	MSG("addr/offset = %p\n", (void *)st_wrm.addr);
 
 	errno = 0;
 	if (st_wrm.flag == USE_IOBASE)
@@ -114,17 +114,17 @@ int main(int argc, char **argv)
 				"%s\n",
 				argv[0], (void *)st_wrm.addr, rdwrmem_tips_msg);
 				close(fd);
-				exit(1);
+				exit(EXIT_FAILURE);
 			}
 		}
 	}
 
-	MSG("addr: 0x%p val=0x%x\n",
+	MSG("addr: %p val=0x%x\n",
 	    (void *)st_wrm.addr, (unsigned int)st_wrm.val);
 	if (ioctl(fd, IOCTL_RWMEMDRV_IOCSMEM, &st_wrm) == -1) {
 		perror("ioctl");
 		close(fd);
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 #ifdef DEBUG
 	//void hex_dump(char *data, unsigned int size, char *caption, int verbose)
@@ -132,5 +132,5 @@ int main(int argc, char **argv)
 #endif
 
 	close(fd);
-	return 0;
+	exit(EXIT_SUCCESS);
 }
