@@ -107,11 +107,12 @@ Using devmem_rw to read the first 16MB of RAM now into the file ${RAMFILE}... pa
 sudo ./rdmem ${PGOFF} ${SIZE2READ} > ${RAMFILE}"
 sudo ./rdmem ${PGOFF} ${SIZE2READ} > ${RAMFILE} || failit && echo "${PASS_STR}"
 
-#echo "Possibly interesting portions of first 16MB RAM:"
-#egrep -v \
-# "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00|ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff" \
-# ${RAMFILE}
-##rm -f ${RAMFILE}
+echo "
+To see possibly interesting portions of first 16MB RAM, run this cmd:
+egrep -v \
+\"00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff\" \
+${RAMFILE}"
+#rm -f ${RAMFILE}
 
 echo "Restore usermode ASLR setting"
 sudo sh -c "echo ${ASLR} > /proc/sys/kernel/randomize_va_space"
