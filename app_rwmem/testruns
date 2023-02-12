@@ -1,0 +1,77 @@
+#!/bin/bash
+name=$(basename $0)
+
+dir=$(basename $(pwd))
+if [[ "${dir}" != "app_rwmem" ]]; then
+	echo "${name}: expect you run the test cases script from the app_rwmem directory"
+	exit 1
+fi
+
+failit()
+{
+	echo "*FAIL*"
+	exit 1
+}
+
+pio_test()
+{
+echo "================= IO port (PIO) Test ========================="
+PIO=sample_keybd_read
+if [[ -f ./${PIO} ]] ; then
+	./${PIO}
+	if [[ $? -ne 0 ]] ; then
+		failit
+	else
+		echo "PASS"
+	fi
+else
+	echo "Script ${PIO} not present? aborting..."
+	exit 1
+fi
+}
+
+drv_test()
+{
+DRV_LOC=../drv_rwmem
+DRV=devmem_rw
+RDMEM=./rdmem
+RDMEM_DBG=./rdmem_dbg
+RDLEN=16
+
+echo
+echo "================= MMIO Test ========================="
+(
+cd ${DRV_LOC}
+make || failit
+echo
+sudo rmmod ${DRV} 2>/dev/null
+sudo dmesg -C
+sudo insmod ${DRV}.ko || failit
+lsmod |grep -w ${DRV}
+)
+# back in 'app_rwmem' dir now
+echo "$(pwd): Building..."
+make >/dev/null || failit
+echo "Turn OFF ASLR"
+aslr=$(cat /proc/sys/kernel/randomize_va_space)
+sudo sh -c "echo 0 > /proc/sys/kernel/randomize_va_space"
+uva=$(sudo ${RDMEM_DBG} 2>/dev/null |grep "gbuf @" |awk '{print $3}')
+[[ -z "${uva}" ]] && {
+	echo "${RDMEM_DBG} failed to obtain sample debug UVA? aborting..."
+	failit
+}
+echo "uva=${uva}"
+
+echo "sudo ${RDMEM_DBG} ${uva} ${RDLEN}"
+sudo ${RDMEM_DBG} ${uva} ${RDLEN}
+
+echo "Restore ASLR setting"
+sudo sh -c "echo ${aslr} > /proc/sys/kernel/randomize_va_space"
+}
+
+
+#--- 'main'
+#pio_test
+drv_test
+
+exit 0
