@@ -3,12 +3,22 @@
 trap 'echo " Aborted by user..." ; exit 0' INT QUIT
 echo "Keep reading x86 i8042 keyboard/mouse controller IO ports 0x60 and 0x64 ..."
 DELAY=1  # seconds
-while [ true ]
+
+i=0
+IMAX=$((2**62)) # practically a lot.... :)   it's 4,611,686,018,427,387,904 = 4 EB !
+if [[ $# -eq 1 && "$1" = "-t" ]]; then
+	IMAX=3
+fi
+#echo "IMAX = ${IMAX}"
+while [ $i -lt ${IMAX} ]
 do
 	echo
 	echo ">>> kbd DATA reg (keyboard scancode!):"
 	sudo ./rdmem -p -b 0x60 1
+	[[ $? -ne 0 ]] && exit 1
 	echo ">>> kbd STATUS/CMD reg (STATUS when read, CMD when written):"
 	sudo ./rdmem -p -b 0x64 1
+	[[ $? -ne 0 ]] && exit 1
 	sleep ${DELAY}
+	let i=i+1
 done
