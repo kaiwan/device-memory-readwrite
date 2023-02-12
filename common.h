@@ -22,8 +22,8 @@
 #ifndef __KERNEL__
 #ifdef DEBUG_PRINT
  #define MSG(string, args...) \
-	fprintf (stderr, "[%s]%s:%d: " string,		\
-		APPNAME, __FUNCTION__, __LINE__, ##args)
+	fprintf(stderr, "[%s]%s():%d: " string,		\
+		APPNAME, __func__, __LINE__, ##args)
 #else
  #define MSG(string, args...)
 #endif
