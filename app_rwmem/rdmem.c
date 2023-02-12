@@ -142,20 +142,20 @@ out_memfail:
 	return -2;
 }
 
-static void ioport_read(int argc, char **argv)
+static int ioport_read(int argc, char **argv)
 {
 	unsigned short ioport = 0, ioport_width = 8;
 	unsigned long ioport_len = 1;
 
 	if (argc < 4) {
 		usage(argv[0]);
-		exit(EXIT_FAILURE);
+		return -1;
 	}
 	// arg 2 : get IOport read width
 	if (strlen(argv[2]) > 2) {
 		fprintf(stderr, "%s: Invalid IO port width (valid values are -b or -w or -l).\n",
 			argv[0]);
-		exit(EXIT_FAILURE);
+		return -1;
 	}
 	if (!strncmp(argv[2], "-b", 2))
 		ioport_width = 8;
@@ -166,7 +166,7 @@ static void ioport_read(int argc, char **argv)
 	else {
 		fprintf(stderr, "%s: Invalid IO port width (valid values are -b or -w or -l).\n",
 			argv[0]);
-		exit(EXIT_FAILURE);
+		return -1;
 	}
 
 	// arg 3 : get IOport number
@@ -174,7 +174,7 @@ static void ioport_read(int argc, char **argv)
 	ioport = strtoul(argv[3], 0, 0);
 	if (errno) {
 		fprintf(stderr, "%s:%s(): strtoul(): range error, aborting...\n", argv[0], __func__);
-		exit(EXIT_FAILURE);
+		return -1;
 	}
 	if (argc == 5) {
 		// arg 4 : get IOport length to read
@@ -182,18 +182,18 @@ static void ioport_read(int argc, char **argv)
 		ioport_len = strtoul(argv[4], 0, 0);
 		if (errno) {
 			fprintf(stderr, "%s:%s(): strtoul(): range error, aborting...\n", argv[0], __func__);
-			exit(EXIT_FAILURE);
+			return -1;
 		}
 		if ((ioport_len < MIN_LEN_IOPORT) || (ioport_len > MAX_LEN_IOPORT)) {
 			fprintf(stderr, "%s: Invalid IO port length (valid range: [%d-%d]).\n",
 				argv[0], MIN_LEN_IOPORT, MAX_LEN_IOPORT);
-			exit(EXIT_FAILURE);
+			return -1;
 		}
 	}
 	// whew
 	if (do_ioport_read(ioport, ioport_width, ioport_len) < 0)
-		exit(EXIT_FAILURE);
-	exit(EXIT_SUCCESS);
+		return -1;
+	return 0;
 }
 #endif
 
@@ -225,11 +225,13 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 #ifdef __x86_64__
-	if (!strncmp(argv[1], "-p", 2)) //===== IO port address specified
-		ioport_read(argc, argv);
+	if (!strncmp(argv[1], "-p", 2)) { //===== IO port address specified
+		if (ioport_read(argc, argv) < 0)
+			exit(EXIT_FAILURE);
+		exit(EXIT_SUCCESS);
+	}
 #endif
 
-// TODO- clean up the bloody mess with args processing!
 	if ((!strncmp(argv[1], "-o", 2)) && argc == 2) {	// address specified as an Offset
 		fprintf(stderr,
 			"%s: you're expected to pass the offset as a _separate_ parameter.\n"
