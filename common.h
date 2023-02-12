@@ -337,7 +337,8 @@ void hex_dump(unsigned char *data, unsigned int size, char *caption, int verbose
 
 	// Printing the ruler...
 	printf
-	    ("         +0          +4          +8          +c               0   4   8   c   \n");
+	    (" Offset  +0          +4          +8          +c               0   4   8   c   \n");
+	    //("         +0          +4          +8          +c               0   4   8   c   \n");
 
 	/* Hex portion of the line is 11 (the padding, as 11 chars used for the '+offset ' portion)
 	 *  + 3 * 16 = 59 chars long
