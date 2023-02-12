@@ -1,6 +1,7 @@
 #!/bin/bash
 # kbd scan codes: https://www.win.tue.nl/~aeb/linux/kbd/scancodes-1.html
-echo "Keep reading x86 i8042 IO ports 0x60 and 0x64 ..."
+trap 'echo " Aborted by user..." ; exit 0' INT QUIT
+echo "Keep reading x86 i8042 keyboard/mouse controller IO ports 0x60 and 0x64 ..."
 DELAY=1  # seconds
 while [ true ]
 do
