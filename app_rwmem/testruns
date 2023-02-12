@@ -7,6 +7,11 @@ if [[ "${dir}" != "app_rwmem" ]]; then
 	exit 1
 fi
 
+PASS_STR="---Test PASSED---"
+DRV_LOC=../drv_rwmem
+DRV=devmem_rw
+
+
 failit()
 {
 	echo "*FAIL*"
@@ -18,11 +23,12 @@ pio_test()
 echo "================= IO port (PIO) Test ========================="
 PIO=sample_keybd_read
 if [[ -f ./${PIO} ]] ; then
-	./${PIO}
+    echo "Running script \"${PIO} -t\" now, pl wait ..."
+	./${PIO} -t >/dev/null   # run the script as a testcase, 3 iterations only
 	if [[ $? -ne 0 ]] ; then
 		failit
 	else
-		echo "PASS"
+		echo "${PASS_STR}"
 	fi
 else
 	echo "Script ${PIO} not present? aborting..."
@@ -30,20 +36,13 @@ else
 fi
 }
 
-drv_test()
+prep_devmem_drv()
 {
-DRV_LOC=../drv_rwmem
-DRV=devmem_rw
-RDMEM=./rdmem
-RDMEM_DBG=./rdmem_dbg
-RDLEN=16
-
-echo
-echo "================= MMIO Test ========================="
 (
 cd ${DRV_LOC}
-make || failit
-echo
+echo "
+$(basename $(pwd)): Building driver module..."
+make >/dev/null 2>&1 || failit
 sudo rmmod ${DRV} 2>/dev/null
 sudo dmesg -C
 sudo insmod ${DRV}.ko || failit
@@ -51,27 +50,72 @@ lsmod |grep -w ${DRV}
 )
 # back in 'app_rwmem' dir now
 echo "$(pwd): Building..."
-make >/dev/null || failit
+make >/dev/null 2>&1 || failit
 echo "Turn OFF ASLR"
-aslr=$(cat /proc/sys/kernel/randomize_va_space)
 sudo sh -c "echo 0 > /proc/sys/kernel/randomize_va_space"
-uva=$(sudo ${RDMEM_DBG} 2>/dev/null |grep "gbuf @" |awk '{print $3}')
+}
+
+userspace_ram_rdwr_test()
+{
+local WRMEM_DBG=./wrmem_dbg
+local BYTES2WRITE=0x112233ee
+local EXPECT2READ="ee 33 22 11"
+
+echo
+echo "================= Userspace RAM memory rd/wr Test ========================="
+prep_devmem_drv
+
+uva=$(sudo ${WRMEM_DBG} 2>/dev/null |grep "gbuf @" |awk '{print $3}')
 [[ -z "${uva}" ]] && {
-	echo "${RDMEM_DBG} failed to obtain sample debug UVA? aborting..."
+	echo "${WRMEM_DBG} failed to obtain sample debug UVA? aborting..."
 	failit
 }
 echo "uva=${uva}"
 
-echo "sudo ${RDMEM_DBG} ${uva} ${RDLEN}"
-sudo ${RDMEM_DBG} ${uva} ${RDLEN}
+echo "sudo ${WRMEM_DBG} ${uva} ${BYTES2WRITE} > tmp 2>/dev/null"
+sudo ${WRMEM_DBG} ${uva} ${BYTES2WRITE} > tmp 2>/dev/null || failit
+grep "^00000000 ${EXPECT2READ}" tmp >/dev/null 2>&1
+[[ $? -ne 0 ]] && failit || echo "${PASS_STR}"
+rm -f tmp
 
 echo "Restore ASLR setting"
-sudo sh -c "echo ${aslr} > /proc/sys/kernel/randomize_va_space"
+sudo sh -c "echo ${ASLR} > /proc/sys/kernel/randomize_va_space"
+}
+
+PROCMAP=procmap
+kernelspace_ram_rd_test()
+{
+echo
+hash ${PROCMAP} 2>/dev/null || {
+	echo "${name}: expect to have the *procmap* utility project installed and in the PATH"
+	echo "URL: https://github.com/kaiwan/procmap"
+	echo "First pl install it and set the PATH, then rerun this script."
+	failit
+}
+echo "================= Kernel-space RAM memory read Test ========================="
+
+echo "Running ${PROCMAP} now to obtain the kernel's PAGE_OFFSET value:
+${PROCMAP} --pid=1 --only-kernel --verbose |grep "^PAGE_OFFSET" |awk '{print $3}'"
+PGOFF=$(${PROCMAP} --pid=1 --only-kernel --verbose |grep "^PAGE_OFFSET" |awk '{print $3}') || failit
+echo "PAGE_OFFSET via ${PROCMAP}: ${PGOFF}"
+prep_devmem_drv
+
+local SIZE2READ=$((16*1024*1024))   # 16M, the max
+echo "Using devmem_rw to read the first 16MB of RAM now... patience ...
+sudo ./rdmem ${PGOFF} ${SIZE2READ} > /tmp/ram.dat"
+sudo ./rdmem ${PGOFF} ${SIZE2READ} > /tmp/ram.dat || failit && echo "${PASS_STR}"
+#rm -f /tmp/ram.dat
+
+echo "Restore ASLR setting"
+sudo sh -c "echo ${ASLR} > /proc/sys/kernel/randomize_va_space"
 }
 
 
 #--- 'main'
-#pio_test
-drv_test
+ASLR=$(cat /proc/sys/kernel/randomize_va_space)
+
+pio_test
+userspace_ram_rdwr_test
+kernelspace_ram_rd_test
 
 exit 0
