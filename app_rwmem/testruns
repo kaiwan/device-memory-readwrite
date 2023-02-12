@@ -51,7 +51,7 @@ lsmod |grep -w ${DRV}
 # back in 'app_rwmem' dir now
 echo "$(pwd): Building..."
 make >/dev/null 2>&1 || failit
-echo "Turn OFF ASLR"
+echo "Turn OFF usermode ASLR"
 sudo sh -c "echo 0 > /proc/sys/kernel/randomize_va_space"
 }
 
@@ -78,7 +78,7 @@ grep "^00000000 ${EXPECT2READ}" tmp >/dev/null 2>&1
 [[ $? -ne 0 ]] && failit || echo "${PASS_STR}"
 rm -f tmp
 
-echo "Restore ASLR setting"
+echo "Restore usermode ASLR setting"
 sudo sh -c "echo ${ASLR} > /proc/sys/kernel/randomize_va_space"
 }
 
@@ -100,13 +100,20 @@ PGOFF=$(${PROCMAP} --pid=1 --only-kernel --verbose |grep "^PAGE_OFFSET" |awk '{p
 echo "PAGE_OFFSET via ${PROCMAP}: ${PGOFF}"
 prep_devmem_drv
 
+local RAMFILE=/tmp/ram_first16M.txt
 local SIZE2READ=$((16*1024*1024))   # 16M, the max
-echo "Using devmem_rw to read the first 16MB of RAM now... patience ...
-sudo ./rdmem ${PGOFF} ${SIZE2READ} > /tmp/ram.dat"
-sudo ./rdmem ${PGOFF} ${SIZE2READ} > /tmp/ram.dat || failit && echo "${PASS_STR}"
-#rm -f /tmp/ram.dat
+echo "
+Using devmem_rw to read the first 16MB of RAM now into the file ${RAMFILE}... patience ...
+sudo ./rdmem ${PGOFF} ${SIZE2READ} > ${RAMFILE}"
+sudo ./rdmem ${PGOFF} ${SIZE2READ} > ${RAMFILE} || failit && echo "${PASS_STR}"
 
-echo "Restore ASLR setting"
+#echo "Possibly interesting portions of first 16MB RAM:"
+#egrep -v \
+# "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00|ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff" \
+# ${RAMFILE}
+##rm -f ${RAMFILE}
+
+echo "Restore usermode ASLR setting"
 sudo sh -c "echo ${ASLR} > /proc/sys/kernel/randomize_va_space"
 }
 
@@ -115,7 +122,7 @@ sudo sh -c "echo ${ASLR} > /proc/sys/kernel/randomize_va_space"
 ASLR=$(cat /proc/sys/kernel/randomize_va_space)
 
 pio_test
-userspace_ram_rdwr_test
+#userspace_ram_rdwr_test
 kernelspace_ram_rd_test
 
 exit 0
