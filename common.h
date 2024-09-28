@@ -29,7 +29,7 @@
 #endif
 #endif
 
-#define DEVICE_FILE		"/dev/devmem_rw.0"
+#define DEVICE_FILE		"/dev/devmem_miscdrv"
 
 // "poison value" to init alloced mem to
 #ifdef CONFIG_X86_64

@@ -2,8 +2,9 @@
  * dev_rwmem.c
  *
  * Part of the DEVMEM-RW opensource project - a simple
- * utility to read / write [I/O] memory and display it.
- * This is the kernel driver.
+ * utility to read / write [I/O] memory and/or RAM and display it.
+ * This is the kernel driver; we use the char 'misc' framework to help
+ * set it up easily.
  *
  * Project home:
  * https://github.com/kaiwan/device-memory-readwrite
@@ -33,6 +34,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/mm.h>  // kvmalloc()
+#include <linux/miscdevice.h>
 
 // copy_[to|from]_user()
 #include <linux/version.h>
@@ -41,6 +43,10 @@
 #else
 #include <asm/uaccess.h>
 #endif
+
+MODULE_AUTHOR("(c) Kaiwan N Billimoria, kaiwanTECH");
+MODULE_DESCRIPTION("Char driver to implement read/write on IO memory or RAM");
+MODULE_LICENSE("Dual MIT/GPL");
 
 static void __iomem *iobase;
 static DEFINE_MUTEX(mtx);
@@ -140,7 +146,7 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 		}
 		memset(tmpbuf, POISONVAL, pst_rdm->len);
 
-		//---------Critical section BEGIN: save & turn off interrupts
+		//---------Critical section BEGIN: save & turn off interrupts and preemption
 		local_irq_save(flags);
 
 #if 0		//------------- ioread32_rep does NOT seem to work! ioread32 does...(on
@@ -162,7 +168,7 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 		// print_hex_dump_bytes ("", DUMP_PREFIX_OFFSET, tmpbuf, pst_rdm->len);
 #endif
 		local_irq_restore(flags);
-		//---------Critical section END: restored interrupt state
+		//---------Critical section END: restored interrupt + preemption state
 
 		memcpy(kbuf, tmpbuf, pst_rdm->len);
 
@@ -214,7 +220,7 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 		pr_debug("addr/offset: 0x%lx val=0x%lx\n", pst_wrm->addr,
 			 pst_wrm->val);
 
-		//---------Critical section BEGIN: save & turn off interrupts
+		//---------Critical section BEGIN: save & turn off interrupts + preemption
 		local_irq_save(flags);
 		if (pst_wrm->flag == USE_IOBASE)
 			iowrite32((u32) pst_wrm->val, pst_wrm->addr + iobase);
@@ -222,7 +228,7 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 			iowrite32((u32) pst_wrm->val, (void __iomem *)pst_wrm->addr);
 		wmb(); // (same as mb(); comment above
 		local_irq_restore(flags);
-		//---------Critical section END: restored interrupt state
+		//---------Critical section END: restored interrupt + preemption state
 
 		retval = sizeof(u32);
 
@@ -254,16 +260,6 @@ static const struct file_operations rwmem_fops = {
 
 static int rwmem_open(struct inode *inode, struct file *filp)
 {
-	switch (iminor(inode)) {
-	case 0:
-		filp->f_op = &rwmem_fops;
-		break;
-	default:
-		return -ENXIO;
-	}
-
-	if (filp->f_op && filp->f_op->open)
-		return filp->f_op->open(inode, filp);
 	pr_debug("opened.\n");
 	return 0;
 }
@@ -274,101 +270,53 @@ static int rwmem_close(struct inode *ino, struct file *filp)
 	return 0;
 }
 
-/* Major-wide open routine */
-static const struct file_operations rwmem_open_fops = {
-	.open = rwmem_open,	/* just a means to get at the real open */
+static const struct file_operations devmem_misc_fops = {
+	.open = rwmem_open,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 36)
+	.unlocked_ioctl = rwmem_ioctl,
+#else
+	.ioctl = rwmem_ioctl,
+#endif
+	.llseek = no_llseek,
 	.release = rwmem_close,
 };
 
-/*--- Dynamic Char Device Registration & device nodes creation---------*/
-static dev_t chardrv_dev_number;
-static struct chardrv_dev {
-	char name[10];
-	struct cdev cdev;
-} *chardrv_devp;
-static struct class *chardrv_class;
-
-static int chardev_registration(void)
-{
-	int res = 0, i = 0;
-
-	res = alloc_chrdev_region(&chardrv_dev_number, RW_MINOR_START, RW_COUNT, DEVICE_FILE);
-	if (res) {
-		pr_warn("could not allocate device\n");
-		return res;
-	}
-	pr_info("registered with major number %d\n", MAJOR(chardrv_dev_number));
-
-	chardrv_devp = kmalloc_array(RW_COUNT, sizeof(struct chardrv_dev), GFP_KERNEL);
-	if (!chardrv_devp)
-		return -ENOMEM;
-
-	memset(chardrv_devp, 0, RW_COUNT * sizeof(struct chardrv_dev));
-	for (i = 0; i < RW_COUNT; i++) {
-		cdev_init(&chardrv_devp[i].cdev, &rwmem_open_fops);
-		chardrv_devp[i].cdev.owner = THIS_MODULE;
-		chardrv_devp[i].cdev.ops = &rwmem_open_fops;
-		res = cdev_add(&chardrv_devp[i].cdev,
-			       MKDEV(MAJOR(chardrv_dev_number),
-				     MINOR(chardrv_dev_number) + i), 1);
-		if (res) {
-			pr_info("Error on cdev_add: %d\n", res);
-			return res;
-		}
-		pr_info("cdev %s.%d added\n", DRVNAME, i);
-	}
-
-	/* Create the devices.
-	 * Note: APIs class_create, device_create, etc exported as
-	 * EXPORT_SYMBOL_GPL(...); so will not show up unless the module license is
-	 * GPL.
-	 */
-	chardrv_class = class_create(THIS_MODULE, DRVNAME);
-	for (i = 0; i < RW_COUNT; i++) {
-		if (!device_create(chardrv_class, NULL,
-				   MKDEV(MAJOR(chardrv_dev_number),
-					 MINOR(chardrv_dev_number) + i), NULL,
-				   "%s.%d", DRVNAME, i)) {
-			pr_notice("Error creating device node /dev/%s.%d !\n", DRVNAME, i);
-			return res;
-		}
-		pr_info("Device node /dev/%s.%d created.\n", DRVNAME, i);
-	}
-	return res;
-}
-
-/* Char driver unregister */
-static void chardev_unregister(void)
-{
-	int i;
-
-	for (i = 0; i < RW_COUNT; i++) {
-		cdev_del(&chardrv_devp[i].cdev);
-		device_destroy(chardrv_class, MKDEV(MAJOR(chardrv_dev_number),
-						    MINOR(chardrv_dev_number) + i));
-	}
-	class_destroy(chardrv_class);
-	kfree(chardrv_devp);
-	unregister_chrdev_region(chardrv_dev_number, RW_COUNT);
-	pr_info("unregistered char driver\n");
-}
-
-static inline int perform_registration(void)
-{
-	return chardev_registration();
-}
+static struct miscdevice devmem_miscdev = {
+	.minor = MISC_DYNAMIC_MINOR,	/* kernel dynamically assigns a free minor# */
+	.name = "devmem_miscdrv",	/* when misc_register() is invoked, the kernel
+				 * will auto-create device file as /dev/devmem_miscdrv ;
+				 * also populated within /sys/class/misc/ and /sys/devices/virtual/misc/ */
+	.mode = 0644,			/* ... dev node perms set as specified here */
+	.fops = &devmem_misc_fops,	/* connect to this driver's 'functionality' */
+};
 
 static int __init rwmem_init_module(void)
 {
+	int ret;
 	int first_time = 1;
+	struct device *dev;
 	struct resource *iores = NULL;
 
+	ret = misc_register(&devmem_miscdev);
+	if (ret != 0) {
+		pr_notice("misc device registration failed, aborting\n");
+		return ret;
+	}
+
+	/* Retrieve the device pointer for this device */
+	dev = devmem_miscdev.this_device;
+	pr_info("devmem misc driver (major # 10) registered, minor# = %d,"
+		" dev node is /dev/%s\n", devmem_miscdev.minor, devmem_miscdev.name);
+
+	dev_info(dev, "sample dev_info(): minor# = %d\n", devmem_miscdev.minor);
+
+#if 1
 	// If no IO base start address specified, we're done for now
 	if (!iobase_start || !iobase_len) {
 		pr_info
 	    ("Init done. IO base address NOT specified (or len invalid) as "
 	     "module param; so, not performing any ioremap() ...\n");
-		return perform_registration();
+		return 0;
 	}
 
  get_region:
@@ -391,14 +339,15 @@ static int __init rwmem_init_module(void)
 		return -ENXIO;
 	}
 	pr_debug("iobase = %px\n", (void *)iobase);
+#endif
 
-	// All ok; register the driver
-	return perform_registration();
+	return 0;		/* success */
 }
 
 static void __exit rwmem_cleanup_module(void)
 {
-	chardev_unregister();
+	misc_deregister(&devmem_miscdev);
+//	chardev_unregister();
 	if (iobase_start) {
 		iounmap(iobase);
 		release_mem_region(iobase_start, iobase_len);
@@ -408,7 +357,3 @@ static void __exit rwmem_cleanup_module(void)
 
 module_init(rwmem_init_module);
 module_exit(rwmem_cleanup_module);
-
-MODULE_AUTHOR("(c) Kaiwan N Billimoria, kaiwanTECH");
-MODULE_DESCRIPTION("Char driver to implement read/write (I/O) memory support.");
-MODULE_LICENSE("Dual MIT/GPL");
