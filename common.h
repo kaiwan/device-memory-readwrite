@@ -324,7 +324,7 @@ void hex_dump(unsigned char *data, unsigned int size, char *caption, int verbose
 {
 	unsigned int i;		// index in data...
 	int j;			// index in line...
-	char temp[10];
+	char temp[12];
 	char buffer[80];
 	char *ascii;
 
