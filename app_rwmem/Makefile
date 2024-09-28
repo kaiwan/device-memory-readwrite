@@ -5,7 +5,7 @@
 GCC := ${CROSS_COMPILE}gcc
 STRIP := ${CROSS_COMPILE}strip
 CFLAGS=-O2 -Wall -UDEBUG
-CFLAGS_DBG=-DDEBUG -g -ggdb -gdwarf-4 -O0 -Wall -Wextra -DDEBUG_PRINT -fsanitize=address
+CFLAGS_DBG=-DDEBUG -g -ggdb -gdwarf-4 -Og -Wall -Wextra -DDEBUG_PRINT -fsanitize=address
 
 ALL := rdmem wrmem rdmem_dbg wrmem_dbg
 all: ${ALL}
