@@ -101,14 +101,14 @@ echo "PAGE_OFFSET via ${PROCMAP}: ${PGOFF}"
 prep_devmem_drv
 
 local RAMFILE=/tmp/ram_first16M.txt
-local SIZE2READ=$((16*1024*1024))   # 16M, the max
+local SIZE2READ=$((16*1024*1024))   # 16M
 echo "
-Using devmem_rw to read the first 16MB of RAM now into the file ${RAMFILE}... patience ...
+Using devmem_rw to read the first $((${SIZE2READ}/(1024*1024))) MB of RAM now into the file ${RAMFILE}... patience ...
 sudo ./rdmem ${PGOFF} ${SIZE2READ} > ${RAMFILE}"
 sudo ./rdmem ${PGOFF} ${SIZE2READ} > ${RAMFILE} || failit && echo "${PASS_STR}"
 
 echo "
-To see possibly interesting portions of first 16MB RAM, run this cmd:
+To see possibly interesting portions of the first $((${SIZE2READ}/(1024*1024))) MB of RAM, run this cmd:
 egrep -v \
 \"00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff\" \
 ${RAMFILE}"
