@@ -18,7 +18,7 @@ failit()
 	exit 1
 }
 
-pio_test()
+x64_pio_test()
 {
 echo "================= IO port (PIO) Test ========================="
 PIO=sample_keybd_read
@@ -115,15 +115,15 @@ ${RAMFILE}"
 #rm -f ${RAMFILE}
 }
 
-kernel_x64_read()
+kernel_read_test()
 {
 echo "
 >>> sudo cat /proc/iomem"
 sudo cat /proc/iomem
 local my_iobase_start my_iobase_end
 echo ">>> Region to capture (MMIO) range details:"
-read -p "> Enter start address (prefix with 0x): " my_iobase_start
-read -p "> Enter end address (prefix with 0x): " my_iobase_end
+read -p "> Enter start address: " my_iobase_start
+read -p "> Enter end address  : " my_iobase_end
 read -p "> Enter region (new) name: " my_name
 my_iobase_start=0x${my_iobase_start}
 my_iobase_end=0x${my_iobase_end}
@@ -149,12 +149,12 @@ sudo rmmod ${DRV}
 
 #--- 'main'
 ASLR=$(cat /proc/sys/kernel/randomize_va_space)
-
-pio_test
 sudo rmmod ${DRV} 2>/dev/null
+
+#x64_pio_test
 ##userspace_ram_rdwr_test
-kernelspace_ram_rd_test
-kernel_x64_read
+#kernelspace_ram_rd_test
+kernel_read_test
 
 echo "Restore usermode ASLR setting"
 sudo sh -c "echo ${ASLR} > /proc/sys/kernel/randomize_va_space"
