@@ -4,21 +4,23 @@
 # The values in this test script are particular to the hardware;
 # the Raspberry Pi 3B[+]
 ############
+KDRV=devmem_rw
 BASE_ADDR=0x7e00b000    # R Pi 3B interrupt registers, as an example region to view...
-OFFSET=0x200            # offset from base address to start mapping
+OFFSET=200            # offset from base address to start mapping
    # Ref: Broadcom 2835 (/2837) ARM Peripherals.pdf doc
-LEN=0x28            # bytes
+LEN=40  #0x28            # bytes
 IOMEM_NAME=rpi_intr  # in /proc/iomem
 FORCE_REL=0
 
-sudo rmmod devmem_rw 2>/dev/null
+sudo rmmod ${KDRV} 2>/dev/null
 sudo dmesg -C
-let BUSADDR=${BASE_ADDR}+${OFFSET}
-printf "devmem_rw: BASEADDR = 0x%x, len=%d bytes, name=%s\n" ${BUSADDR} ${LEN} ${IOMEM_NAME}
-cmd="sudo insmod ../drv_rwmem/devmem_rw.ko iobase_start=${BUSADDR} iobase_len=${LEN} reg_name=${IOMEM_LBL} force_rel=${FORCE_REL}"
-#echo ${cmd}
-sudo rmmod devmem_rw >/dev/null 2>&1
+BUSADDR=$((${BASE_ADDR}+${OFFSET}))
+
+CMD=$(printf "sudo insmod ../drv_rwmem/${KDRV}.ko iobase_start=0x%x iobase_len=%d reg_name=%s force_rel=${FORCE_REL}\n" \
+	${BUSADDR} ${LEN} ${IOMEM_NAME})
+echo ${CMD}
+
 eval ${cmd} || exit 1
-lsmod|grep devmem_rw
+lsmod|grep ${KDRV}
 sudo dmesg
 sudo grep "${IOMEM_NAME}" /proc/iomem
