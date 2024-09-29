@@ -328,15 +328,17 @@ static int __init rwmem_init_module(void)
 			first_time = 0;
 			goto get_region;
 		}
-		pr_info("Could not get IO resource, aborting...\n");
-		return -ENXIO;
+		dev_err(dev, "could not get the specified IO resource region, aborting...\n");
+		misc_deregister(&devmem_miscdev);
+		return -EBUSY;
 	}
 
 	iobase = ioremap(iobase_start, iobase_len);
 	if (!iobase) {
 		pr_info("ioremap failed, aborting...\n");
 		release_mem_region(iobase_start, iobase_len);
-		return -ENXIO;
+		misc_deregister(&devmem_miscdev);
+		return -EBUSY;
 	}
 	pr_debug("iobase = %px\n", (void *)iobase);
 #endif
