@@ -113,9 +113,37 @@ egrep -v \
 \"00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff\" \
 ${RAMFILE}"
 #rm -f ${RAMFILE}
+}
 
-echo "Restore usermode ASLR setting"
-sudo sh -c "echo ${ASLR} > /proc/sys/kernel/randomize_va_space"
+kernel_x64_read()
+{
+echo "
+>>> sudo cat /proc/iomem"
+sudo cat /proc/iomem
+local my_iobase_start my_iobase_end
+echo ">>> Region to capture (MMIO) range details:"
+read -p "> Enter start address (prefix with 0x): " my_iobase_start
+read -p "> Enter end address (prefix with 0x): " my_iobase_end
+read -p "> Enter region (new) name: " my_name
+my_iobase_start=0x${my_iobase_start}
+my_iobase_end=0x${my_iobase_end}
+local len=$((my_iobase_end-my_iobase_start+1))
+
+sudo rmmod ${DRV} 2>/dev/null
+echo ">>> sudo insmod ${DRV_LOC}/${DRV}.ko iobase_start=${my_iobase_start} iobase_len=${len} reg_name=${my_name} force_rel=1"
+sudo insmod ${DRV_LOC}/${DRV}.ko iobase_start=${my_iobase_start} iobase_len=${len} reg_name=${my_name} force_rel=1
+[[ $? -ne 0 ]] && failit
+echo "---"
+sudo grep --color=always ${my_iobase_start:2} /proc/iomem
+echo "---"
+
+# read some of it...
+local rlen=32
+[[ ${len} -lt 32 ]] && rlen=${len}
+echo ">>> sudo ./rdmem -o 0 ${rlen}"
+sudo ./rdmem -o 0 ${rlen} || failit
+echo "${PASS_STR}"
+sudo rmmod ${DRV}
 }
 
 
@@ -123,7 +151,11 @@ sudo sh -c "echo ${ASLR} > /proc/sys/kernel/randomize_va_space"
 ASLR=$(cat /proc/sys/kernel/randomize_va_space)
 
 pio_test
-#userspace_ram_rdwr_test
+sudo rmmod ${DRV} 2>/dev/null
+##userspace_ram_rdwr_test
 kernelspace_ram_rd_test
+kernel_x64_read
 
+echo "Restore usermode ASLR setting"
+sudo sh -c "echo ${ASLR} > /proc/sys/kernel/randomize_va_space"
 exit 0
