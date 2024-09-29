@@ -258,6 +258,7 @@ static const struct file_operations rwmem_fops = {
 #endif
 };
 
+#if 0
 static int rwmem_open(struct inode *inode, struct file *filp)
 {
 	pr_debug("opened.\n");
@@ -269,16 +270,19 @@ static int rwmem_close(struct inode *ino, struct file *filp)
 	pr_debug("closed.\n");
 	return 0;
 }
+#endif
 
 static const struct file_operations devmem_misc_fops = {
+#if 0
 	.open = rwmem_open,
+	.release = rwmem_close,
+#endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 36)
 	.unlocked_ioctl = rwmem_ioctl,
 #else
 	.ioctl = rwmem_ioctl,
 #endif
 	.llseek = no_llseek,
-	.release = rwmem_close,
 };
 
 static struct miscdevice devmem_miscdev = {
