@@ -62,7 +62,7 @@ static int iobase_len;
 module_param(iobase_len, uint, 0);
 MODULE_PARM_DESC(iobase_len,
 "Length (in bytes) of IO base memory (typically h/w registers mapped "
-"here by the processor)");
+"here by the processor); ensure the region's full length is given");
 
 static int force_rel;
 module_param(force_rel, uint, 0);
@@ -297,20 +297,17 @@ static int __init rwmem_init_module(void)
 	struct device *dev;
 	struct resource *iores = NULL;
 
+	//--- misc device registration
 	ret = misc_register(&devmem_miscdev);
 	if (ret != 0) {
 		pr_notice("misc device registration failed, aborting\n");
 		return ret;
 	}
-
-	/* Retrieve the device pointer for this device */
 	dev = devmem_miscdev.this_device;
-	pr_info("devmem misc driver (major # 10) registered, minor# = %d,"
+	dev_info(dev, "devmem misc driver (major # 10) registered, minor# = %d,"
 		" dev node is /dev/%s\n", devmem_miscdev.minor, devmem_miscdev.name);
 
-	dev_info(dev, "sample dev_info(): minor# = %d\n", devmem_miscdev.minor);
-
-#if 1
+	//--- Setup the MMIO region
 	// If no IO base start address specified, we're done for now
 	if (!iobase_start || !iobase_len) {
 		pr_info
@@ -323,7 +320,7 @@ static int __init rwmem_init_module(void)
 	iores = request_mem_region(iobase_start, iobase_len, reg_name);
 	if (!iores) {
 		if (force_rel && first_time) {
-			pr_debug("attempting to release mem region..\n");
+			pr_info("attempting to _force release_ the specified mem region..\n");
 			release_mem_region(iobase_start, iobase_len);
 			first_time = 0;
 			goto get_region;
@@ -333,15 +330,15 @@ static int __init rwmem_init_module(void)
 		return -EBUSY;
 	}
 
+	// TODO - use devm_ioremp() etc
 	iobase = ioremap(iobase_start, iobase_len);
 	if (!iobase) {
-		pr_info("ioremap failed, aborting...\n");
+		dev_err(dev, "ioremap failed, aborting...\n");
 		release_mem_region(iobase_start, iobase_len);
 		misc_deregister(&devmem_miscdev);
 		return -EBUSY;
 	}
-	pr_debug("iobase = %px\n", (void *)iobase);
-#endif
+	pr_debug("iobase = 0x%px\n", (void *)iobase);
 
 	return 0;		/* success */
 }
@@ -349,8 +346,7 @@ static int __init rwmem_init_module(void)
 static void __exit rwmem_cleanup_module(void)
 {
 	misc_deregister(&devmem_miscdev);
-//	chardev_unregister();
-	if (iobase_start) {
+	if (iobase) {
 		iounmap(iobase);
 		release_mem_region(iobase_start, iobase_len);
 	}
