@@ -19,8 +19,9 @@ sudo grep "${BASE_ADDR2}" /proc/iomem || {
 
 sudo rmmod ${KDRV} 2>/dev/null
 sudo dmesg -C
-BUSADDR=$((${BASE_ADDR}+${OFFSET}))
+sudo insmod ../drv_rwmem/${KDRV} || exit 1
 
+BUSADDR=$((${BASE_ADDR}+${OFFSET}))
 CMD=$(printf "sudo insmod ../drv_rwmem/${KDRV}.ko iobase_start=0x%x iobase_len=%d reg_name=%s force_rel=${FORCE_REL}\n" \
 	${BUSADDR} ${LEN} ${IOMEM_NAME})
 echo ${CMD}
@@ -30,7 +31,9 @@ lsmod|grep ${KDRV}
 sudo dmesg
 sudo grep "${IOMEM_NAME}" /proc/iomem
 sudo ./rdmem -o 0 ${LEN} || {
+  sudo rmmod ${KDRV} 2>/dev/null
   echo "*fail*" ; exit 1
 }
+sudo rmmod ${KDRV} 2>/dev/null
 echo "Success"
 exit 0
