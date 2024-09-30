@@ -1,8 +1,17 @@
 #!/bin/bash
+# For x86[_64] keyboards
 # kbd scan codes: https://www.win.tue.nl/~aeb/linux/kbd/scancodes-1.html
 trap 'echo " Aborted by user..." ; exit 0' INT QUIT
-echo "Keep reading x86 i8042 keyboard/mouse controller IO ports 0x60 and 0x64 ..."
 DELAY=1  # seconds
+APP_LOC=../app_rwmem
+
+[[ ! -f ${APP_LOC}/rdmem ]] && {
+  echo "First build the ${APP_LOC}/rdmem app and then retry" ; exit 1
+}
+[[ $(id -u) -ne 0 ]] && {
+  echo "Must run as root" ; exit 1
+}
+echo "Keep reading x86 i8042 keyboard/mouse controller IO ports 0x60 and 0x64 ..."
 
 i=0
 IMAX=$((2**62)) # practically a lot.... :)   it's 4,611,686,018,427,387,904 = 4 EB !
@@ -14,10 +23,10 @@ while [ $i -lt ${IMAX} ]
 do
 	echo
 	echo ">>> kbd DATA reg (keyboard scancode!):"
-	sudo ./rdmem -p -b 0x60 1
+	${APP_LOC}/rdmem -p -b 0x60 1
 	[[ $? -ne 0 ]] && exit 1
 	echo ">>> kbd STATUS/CMD reg (STATUS when read, CMD when written):"
-	sudo ./rdmem -p -b 0x64 1
+	${APP_LOC}/rdmem -p -b 0x64 1
 	[[ $? -ne 0 ]] && exit 1
 	sleep ${DELAY}
 	let i=i+1

@@ -2,15 +2,15 @@
 name=$(basename $0)
 
 dir=$(basename $(pwd))
-if [[ "${dir}" != "app_rwmem" ]]; then
+if [[ "${dir}" != "tests" ]]; then
 	echo "${name}: expect you run the test cases script from the app_rwmem directory"
 	exit 1
 fi
 
 PASS_STR="---Test PASSED---"
+APP_LOC=../app_rwmem
 DRV_LOC=../drv_rwmem
-DRV=devmem_rw
-
+KDRV=devmem_rw
 
 failit()
 {
@@ -24,7 +24,7 @@ echo "================= IO port (PIO) Test ========================="
 PIO=sample_keybd_read
 if [[ -f ./${PIO} ]] ; then
     echo "Running script \"${PIO} -t\" now, pl wait ..."
-	./${PIO} -t >/dev/null   # run the script as a testcase, 3 iterations only
+	sudo ./${PIO} -t #>/dev/null   # run the script as a testcase, 3 iterations only
 	if [[ $? -ne 0 ]] ; then
 		failit
 	else
@@ -43,14 +43,17 @@ cd ${DRV_LOC}
 echo "
 $(basename $(pwd)): Building driver module..."
 make >/dev/null 2>&1 || failit
-sudo rmmod ${DRV} 2>/dev/null
+sudo rmmod ${KDRV} 2>/dev/null
 sudo dmesg -C
-sudo insmod ${DRV}.ko || failit
-lsmod |grep -w ${DRV}
+sudo insmod ./${KDRV}.ko || failit
+lsmod |grep -w ${KDRV}
 )
-# back in 'app_rwmem' dir now
-echo "$(pwd): Building..."
+(
+cd ${APP_LOC}
+echo "
+$(basename $(pwd)): Building apps..."
 make >/dev/null 2>&1 || failit
+)
 echo "Turn OFF usermode ASLR"
 sudo sh -c "echo 0 > /proc/sys/kernel/randomize_va_space"
 }
@@ -104,8 +107,8 @@ local RAMFILE=/tmp/ram_first16M.txt
 local SIZE2READ=$((16*1024*1024))   # 16M
 echo "
 Using devmem_rw to read the first $((${SIZE2READ}/(1024*1024))) MB of RAM now into the file ${RAMFILE}... patience ...
-sudo ./rdmem ${PGOFF} ${SIZE2READ} > ${RAMFILE}"
-sudo ./rdmem ${PGOFF} ${SIZE2READ} > ${RAMFILE} || failit && echo "${PASS_STR}"
+sudo ${APP_LOC}/rdmem ${PGOFF} ${SIZE2READ} > ${RAMFILE}"
+sudo ${APP_LOC}/rdmem ${PGOFF} ${SIZE2READ} > ${RAMFILE} || failit && echo "${PASS_STR}"
 
 echo "
 To see possibly interesting portions of the first $((${SIZE2READ}/(1024*1024))) MB of RAM, run this cmd:
@@ -120,6 +123,7 @@ kernel_read_test()
 echo "
 >>> sudo cat /proc/iomem"
 sudo cat /proc/iomem
+
 local my_iobase_start my_iobase_end
 echo ">>> Region to capture (MMIO) range details:"
 read -p "> Enter start address: " my_iobase_start
@@ -130,9 +134,9 @@ my_iobase_end=0x${my_iobase_end}
 local len=$((my_iobase_end-my_iobase_start+1))
 
 sudo dmesg -C
-sudo rmmod ${DRV} 2>/dev/null
-echo ">>> sudo insmod ${DRV_LOC}/${DRV}.ko iobase_start=${my_iobase_start} iobase_len=${len} reg_name=${my_name} force_rel=1"
-sudo insmod ${DRV_LOC}/${DRV}.ko iobase_start=${my_iobase_start} iobase_len=${len} reg_name=${my_name} force_rel=1
+sudo rmmod ${KDRV} 2>/dev/null
+echo ">>> sudo insmod ${DRV_LOC}/${KDRV}.ko iobase_start=${my_iobase_start} iobase_len=${len} reg_name=${my_name} force_rel=1"
+sudo insmod ${DRV_LOC}/${KDRV}.ko iobase_start=${my_iobase_start} iobase_len=${len} reg_name=${my_name} force_rel=1
 [[ $? -ne 0 ]] && {
   echo "Failed; kernel log follows:"
   sudo dmesg
@@ -145,20 +149,20 @@ echo "---"
 # read some of it...
 local rlen=32
 [[ ${len} -lt 32 ]] && rlen=${len}
-echo ">>> sudo ./rdmem -o 0 ${rlen}"
-sudo ./rdmem -o 0 ${rlen} || failit
+echo ">>> sudo ${APP_LOC}/rdmem -o 0 ${rlen}"
+sudo ${APP_LOC}/rdmem -o 0 ${rlen} || failit
 echo "${PASS_STR}"
-sudo rmmod ${DRV}
+sudo rmmod ${KDRV}
 }
 
 
 #--- 'main'
 ASLR=$(cat /proc/sys/kernel/randomize_va_space)
-sudo rmmod ${DRV} 2>/dev/null
+sudo rmmod ${KDRV} 2>/dev/null
 
-#x64_pio_test
+x64_pio_test
 ##userspace_ram_rdwr_test
-#kernelspace_ram_rd_test
+kernelspace_ram_rd_test
 kernel_read_test
 
 echo "Restore usermode ASLR setting"

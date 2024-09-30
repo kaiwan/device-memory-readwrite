@@ -4,6 +4,7 @@
 # The values in this test script are particular to the hardware;
 # the Raspberry Pi 4B
 ############
+KDRV_LOC=../drv_rwmem
 KDRV=devmem_rw
 BASE_ADDR=0xfe00b880   # one of the R Pi 4B mailbox registers, as an example region to view...
 OFFSET=0               # offset from base address to start mapping
@@ -19,14 +20,15 @@ sudo grep "${BASE_ADDR2}" /proc/iomem || {
 
 sudo rmmod ${KDRV} 2>/dev/null
 sudo dmesg -C
-sudo insmod ../drv_rwmem/${KDRV} || exit 1
 
 BUSADDR=$((${BASE_ADDR}+${OFFSET}))
-CMD=$(printf "sudo insmod ../drv_rwmem/${KDRV}.ko iobase_start=0x%x iobase_len=%d reg_name=%s force_rel=${FORCE_REL}\n" \
-	${BUSADDR} ${LEN} ${IOMEM_NAME})
+CMD=$(printf "sudo insmod ${KDRV_LOC}/${KDRV}.ko iobase_start=0x%x iobase_len=%d reg_name=%s force_rel=${FORCE_REL}\n" ${BUSADDR} ${LEN} ${IOMEM_NAME})
 echo ${CMD}
 
-sudo sh -c "${cmd}" || exit 1
+#sudo sh -c "${cmd}" || exit 1
+eval "${cmd}" || {
+  sudo dmesg ; exit 1
+}
 lsmod|grep ${KDRV}
 sudo dmesg
 sudo grep "${IOMEM_NAME}" /proc/iomem
