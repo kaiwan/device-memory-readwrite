@@ -5,12 +5,17 @@
 # the Raspberry Pi 4B
 ############
 KDRV=devmem_rw
-BASE_ADDR=0xfe00b880    # R Pi 3B interrupt registers, as an example region to view...
-OFFSET=0                # offset from base address to start mapping
+BASE_ADDR=0xfe00b880   # one of the R Pi 4B mailbox registers, as an example region to view...
+OFFSET=0               # offset from base address to start mapping
    # Ref: Broadcom 2835 (/2837) ARM Peripherals.pdf doc
-LEN=64                  # bytes
-IOMEM_NAME=mailbox      # in /proc/iomem
-FORCE_REL=0
+LEN=64                 # bytes
+IOMEM_NAME=my_mailbox  # in /proc/iomem
+FORCE_REL=1
+
+BASE_ADDR2=${BASE_ADDR:2}
+sudo grep "${BASE_ADDR2}" /proc/iomem || {
+  echo "MMIO region from ${BASE_ADDR} not found? aborting..." ; exit 1
+}
 
 sudo rmmod ${KDRV} 2>/dev/null
 sudo dmesg -C
@@ -20,7 +25,12 @@ CMD=$(printf "sudo insmod ../drv_rwmem/${KDRV}.ko iobase_start=0x%x iobase_len=%
 	${BUSADDR} ${LEN} ${IOMEM_NAME})
 echo ${CMD}
 
-eval ${cmd} || exit 1
+sudo sh -c "${cmd}" || exit 1
 lsmod|grep ${KDRV}
 sudo dmesg
 sudo grep "${IOMEM_NAME}" /proc/iomem
+sudo ./rdmem -o 0 ${LEN} || {
+  echo "*fail*" ; exit 1
+}
+echo "Success"
+exit 0
