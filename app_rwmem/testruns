@@ -129,10 +129,15 @@ my_iobase_start=0x${my_iobase_start}
 my_iobase_end=0x${my_iobase_end}
 local len=$((my_iobase_end-my_iobase_start+1))
 
+sudo dmesg -C
 sudo rmmod ${DRV} 2>/dev/null
 echo ">>> sudo insmod ${DRV_LOC}/${DRV}.ko iobase_start=${my_iobase_start} iobase_len=${len} reg_name=${my_name} force_rel=1"
 sudo insmod ${DRV_LOC}/${DRV}.ko iobase_start=${my_iobase_start} iobase_len=${len} reg_name=${my_name} force_rel=1
-[[ $? -ne 0 ]] && failit
+[[ $? -ne 0 ]] && {
+  echo "Failed; kernel log follows:"
+  sudo dmesg
+  failit
+}
 echo "---"
 sudo grep --color=always ${my_iobase_start:2} /proc/iomem
 echo "---"
