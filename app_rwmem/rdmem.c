@@ -246,8 +246,9 @@ int main(int argc, char **argv)
 	memset(&st_rdm, 0, sizeof(ST_RDM));
 
 	if ((fd = open(DEVICE_FILE, O_RDONLY | O_CLOEXEC, 0)) == -1) {
-		perror
-		    ("device file open failed. Driver 'devmem_rw' not loaded?");
+		fprintf(stderr, "%s: device file - %s - open failed! (Is the driver module 'devmem_rw.ko' not loaded?)",
+			argv[0], DEVICE_FILE);
+		perror("device file open failed");
 		exit(EXIT_FAILURE);
 	}
 

@@ -70,7 +70,9 @@ int main(int argc, char **argv)
 	memset(&st_wrm, 0, sizeof(ST_WRM));
 
 	if ((fd = open(DEVICE_FILE, O_RDWR | O_CLOEXEC, 0)) == -1) {
-		perror("device file open failed. Driver 'rwmem' not loaded?");
+		fprintf(stderr, "%s: device file - %s - open failed! (Is the driver module 'devmem_rw.ko' not loaded?)",
+			argv[0], DEVICE_FILE);
+		perror("device file open failed");
 		exit(EXIT_FAILURE);
 	}
 
