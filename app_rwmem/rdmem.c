@@ -197,6 +197,10 @@ static int ioport_read(int argc, char **argv)
 }
 #endif
 
+//uint32_t reverse_endian_32(uint32_t number) {
+unsigned long reverse_endian_32(unsigned long number) {
+  return (((number & 0xFF) << 24) | ((number & 0xFF00) << 8) | ((number & 0xFF0000) >> 8) | (number >> 24));
+}
 
 int main(int argc, char **argv)
 {
@@ -342,6 +346,58 @@ int main(int argc, char **argv)
 		close(fd);
 		exit(EXIT_FAILURE);
 	}
+	
+	/* Endian-ness: perform byte swapping as required */
+#if 1
+{
+	unsigned int i;
+	for (i=0; i<st_rdm.len/4; i++) {
+		unsigned char tmp[2];
+#if 0
+#ifndef __BIG_ENDIAN     // LITTLE-ENDIAN
+                tmp[0] = st_rdm.buf[(i * 4) + 0];
+                tmp[1] = st_rdm.buf[(i * 4) + 1];
+/*
+                st_rdm.buf[(i * 4) + 0] = st_rdm.buf[(i*4)+3];
+                st_rdm.buf[(i * 4) + 1] = st_rdm.buf[(i*4)+2];
+                st_rdm.buf[(i * 4) + 2] = tmp[1]; //st_rdm.buf[(i*4)+1];
+                st_rdm.buf[(i * 4) + 3] = tmp[0]; //st_rdm.buf[(i*4)+0];
+
+                st_rdm.buf[(i * 4) + 0] = st_rdm.buf[(i*4)+3];
+                st_rdm.buf[(i * 4) + 1] = st_rdm.buf[(i*4)+2];
+                st_rdm.buf[(i * 4) + 2] = st_rdm.buf[(i*4)+1];
+                st_rdm.buf[(i * 4) + 3] = st_rdm.buf[(i*4)+0];
+		*/
+//#else    // BIG-ENDIAN
+#endif
+#endif
+	// the endian-ness seems to be the opp in user mode ???
+#ifdef __BIG_ENDIAN     // LITTLE-ENDIAN
+		/*
+		printf("buf[%d]=0x%x\n", i, st_rdm.buf[i]);
+		printf("buf[%d]=0x%x\n", i+1, st_rdm.buf[i+1]);
+		printf("buf[%d]=0x%x\n", i+2, st_rdm.buf[i+2]);
+		printf("buf[%d]=0x%x\n", i+3, st_rdm.buf[i+3]); */
+
+                tmp[0] = st_rdm.buf[(i * 4) + 0];
+                tmp[1] = st_rdm.buf[(i * 4) + 1];
+
+                st_rdm.buf[(i * 4) + 0] = st_rdm.buf[(i*4)+3];
+                st_rdm.buf[(i * 4) + 1] = st_rdm.buf[(i*4)+2];
+                st_rdm.buf[(i * 4) + 2] = tmp[1]; //st_rdm.buf[(i*4)+1];
+                st_rdm.buf[(i * 4) + 3] = tmp[0]; //st_rdm.buf[(i*4)+0];
+#endif
+	}
+}
+#endif
+
+		/*
+	#include <byteswap.h>
+	//__bswap_32((unsigned long)st_rdm.buf[0]);
+	unsigned long orig = strtoul(st_rdm.buf, 0, 16);
+	unsigned long revl = reverse_endian_32(orig);
+	printf("orig=0x%lx revl=0x%lx\n", revl);
+*/
 
 	//void hex_dump(unsigned char *data, unsigned int size, char *caption, int verbose)
 	hex_dump(st_rdm.buf, st_rdm.len, "MemDump", 0);
