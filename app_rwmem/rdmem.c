@@ -348,31 +348,13 @@ int main(int argc, char **argv)
 	}
 	
 	/* Endian-ness: perform byte swapping as required */
-#if 1
-{
+	{
 	unsigned int i;
 	for (i=0; i<st_rdm.len/4; i++) {
 		unsigned char tmp[2];
-#if 0
-#ifndef __BIG_ENDIAN     // LITTLE-ENDIAN
-                tmp[0] = st_rdm.buf[(i * 4) + 0];
-                tmp[1] = st_rdm.buf[(i * 4) + 1];
-/*
-                st_rdm.buf[(i * 4) + 0] = st_rdm.buf[(i*4)+3];
-                st_rdm.buf[(i * 4) + 1] = st_rdm.buf[(i*4)+2];
-                st_rdm.buf[(i * 4) + 2] = tmp[1]; //st_rdm.buf[(i*4)+1];
-                st_rdm.buf[(i * 4) + 3] = tmp[0]; //st_rdm.buf[(i*4)+0];
-
-                st_rdm.buf[(i * 4) + 0] = st_rdm.buf[(i*4)+3];
-                st_rdm.buf[(i * 4) + 1] = st_rdm.buf[(i*4)+2];
-                st_rdm.buf[(i * 4) + 2] = st_rdm.buf[(i*4)+1];
-                st_rdm.buf[(i * 4) + 3] = st_rdm.buf[(i*4)+0];
-		*/
-//#else    // BIG-ENDIAN
-#endif
-#endif
 	// the endian-ness seems to be the opp in user mode ???
-#ifdef __BIG_ENDIAN     // LITTLE-ENDIAN
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+		MSG("little endian\n");
 		/*
 		printf("buf[%d]=0x%x\n", i, st_rdm.buf[i]);
 		printf("buf[%d]=0x%x\n", i+1, st_rdm.buf[i+1]);
@@ -386,22 +368,16 @@ int main(int argc, char **argv)
                 st_rdm.buf[(i * 4) + 1] = st_rdm.buf[(i*4)+2];
                 st_rdm.buf[(i * 4) + 2] = tmp[1]; //st_rdm.buf[(i*4)+1];
                 st_rdm.buf[(i * 4) + 3] = tmp[0]; //st_rdm.buf[(i*4)+0];
+#else
+		MSG("little endian\n");
 #endif
 	}
-}
-#endif
+	}
 
-		/*
-	#include <byteswap.h>
-	//__bswap_32((unsigned long)st_rdm.buf[0]);
-	unsigned long orig = strtoul(st_rdm.buf, 0, 16);
-	unsigned long revl = reverse_endian_32(orig);
-	printf("orig=0x%lx revl=0x%lx\n", revl);
-*/
-
-	//void hex_dump(unsigned char *data, unsigned int size, char *caption, int verbose)
+	// void hex_dump(unsigned char *data, unsigned int size, char *caption, int verbose)
 	hex_dump(st_rdm.buf, st_rdm.len, "MemDump", 0);
 	free(st_rdm.buf);
 	close(fd);
+
 	return 0;
 }
