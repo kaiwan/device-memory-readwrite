@@ -348,7 +348,6 @@ int main(int argc, char **argv)
 	}
 	
 	/* Endian-ness: perform byte swapping as required */
-<<<<<<< HEAD
 	{
 	unsigned int i;
 	for (i=0; i<st_rdm.len/4; i++) {
@@ -356,11 +355,6 @@ int main(int argc, char **argv)
 	// the endian-ness seems to be the opp in user mode ???
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 		MSG("little endian\n");
-=======
-{
-	unsigned int i;
-	for (i=0; i<st_rdm.len/4; i++) {
-		unsigned char tmp[2];
 	/*
 	 * TODO / RELOOK
 	 * Pecuiliar! On the TI BBB, the endian-ness seems to be the opp in user mode ???
@@ -369,8 +363,6 @@ int main(int argc, char **argv)
 	 *
 	 * So, on the TI BBB, you have to invert this below condition !
 	 */
-#ifndef __BIG_ENDIAN     // LITTLE-ENDIAN
->>>>>>> e94fa6a763d4234340314276f97fc8afc0d25fe8
 		/*
 		printf("buf[%d]=0x%x\n", i, st_rdm.buf[i]);
 		printf("buf[%d]=0x%x\n", i+1, st_rdm.buf[i+1]);
@@ -382,7 +374,6 @@ int main(int argc, char **argv)
 
                 st_rdm.buf[(i * 4) + 0] = st_rdm.buf[(i*4)+3];
                 st_rdm.buf[(i * 4) + 1] = st_rdm.buf[(i*4)+2];
-<<<<<<< HEAD
                 st_rdm.buf[(i * 4) + 2] = tmp[1]; //st_rdm.buf[(i*4)+1];
                 st_rdm.buf[(i * 4) + 3] = tmp[0]; //st_rdm.buf[(i*4)+0];
 #else
@@ -390,13 +381,6 @@ int main(int argc, char **argv)
 #endif
 	}
 	}
-=======
-                st_rdm.buf[(i * 4) + 2] = tmp[1];
-                st_rdm.buf[(i * 4) + 3] = tmp[0];
-#endif
-	}
-}
->>>>>>> e94fa6a763d4234340314276f97fc8afc0d25fe8
 
 	// void hex_dump(unsigned char *data, unsigned int size, char *caption, int verbose)
 	hex_dump(st_rdm.buf, st_rdm.len, "MemDump", 0);
