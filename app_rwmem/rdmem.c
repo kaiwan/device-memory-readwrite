@@ -355,23 +355,13 @@ int main(int argc, char **argv)
 	// the endian-ness seems to be the opp in user mode ???
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 		MSG("little endian\n");
-	/*
-	 * TODO / RELOOK
-	 * Pecuiliar! On the TI BBB, the endian-ness seems to be the opp in user mode ???
-	 * i.e. __BIG_ENDIAN shows as True on little-endian ???
-	 * On the Raspberry Pi family it's fine, as expected...
-	 *
-	 * So, on the TI BBB, you have to invert this below condition !
-	 */
 		/*
 		printf("buf[%d]=0x%x\n", i, st_rdm.buf[i]);
 		printf("buf[%d]=0x%x\n", i+1, st_rdm.buf[i+1]);
 		printf("buf[%d]=0x%x\n", i+2, st_rdm.buf[i+2]);
 		printf("buf[%d]=0x%x\n", i+3, st_rdm.buf[i+3]); */
-
                 tmp[0] = st_rdm.buf[(i * 4) + 0];
                 tmp[1] = st_rdm.buf[(i * 4) + 1];
-
                 st_rdm.buf[(i * 4) + 0] = st_rdm.buf[(i*4)+3];
                 st_rdm.buf[(i * 4) + 1] = st_rdm.buf[(i*4)+2];
                 st_rdm.buf[(i * 4) + 2] = tmp[1]; //st_rdm.buf[(i*4)+1];
