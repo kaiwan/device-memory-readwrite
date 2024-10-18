@@ -352,7 +352,6 @@ int main(int argc, char **argv)
 	unsigned int i;
 	for (i=0; i<st_rdm.len/4; i++) {
 		unsigned char tmp[2];
-	// the endian-ness seems to be the opp in user mode ???
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 		MSG("little endian\n");
 		/*
@@ -367,7 +366,7 @@ int main(int argc, char **argv)
                 st_rdm.buf[(i * 4) + 2] = tmp[1]; //st_rdm.buf[(i*4)+1];
                 st_rdm.buf[(i * 4) + 3] = tmp[0]; //st_rdm.buf[(i*4)+0];
 #else
-		MSG("little endian\n");
+		MSG("big endian\n");
 #endif
 	}
 	}
