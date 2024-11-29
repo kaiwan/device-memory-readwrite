@@ -46,16 +46,17 @@ line for our experiment (as we aren't using HDMI now, we're running in headless 
 
 So the start addr here is `0x20808000` and the length is 256 bytes; we load the driver accordingly, passing parameters to convey this info to it:
 
-$ sudo insmod ../drv_rwmem/devmem_rw.ko iobase_start=0x20808000 iobase_len=256 reg_name=rpi_hdmi force_rel=1
+    $ sudo insmod ../drv_rwmem/devmem_rw.ko iobase_start=0x20808000 iobase_len=256 reg_name=rpi_hdmi force_rel=1
+    
+        # dmesg |tail
+        ...
+        [ 465.396769] devmem_rw: loading out-of-tree module taints kernel.
+        [ 465.397511] devmem_rw:rwmem_init_module(): little-endian arch
+        [ 465.397915] misc devmem_miscdrv: devmem misc driver (major # 10) registered, minor# = 123, dev node is /dev/devmem_miscdrv
+        [ 465.397954] devmem_rw:rwmem_init_module(): attempting to _force release_ the specified mem region..
+        [ 465.397999] devmem_rw:rwmem_init_module(): iobase = 0xdc8ef000
+        #
 
-    # dmesg |tail
-    ...
-    [ 465.396769] devmem_rw: loading out-of-tree module taints kernel.
-    [ 465.397511] devmem_rw:rwmem_init_module(): little-endian arch
-    [ 465.397915] misc devmem_miscdrv: devmem misc driver (major # 10) registered, minor# = 123, dev node is /dev/devmem_miscdrv
-    [ 465.397954] devmem_rw:rwmem_init_module(): attempting to _force release_ the specified mem region..
-    [ 465.397999] devmem_rw:rwmem_init_module(): iobase = 0xdc8ef000
-    #
 The driver has loaded successfully, ioremap'ping the specified h/w memory region into the kernel VAS! Our *rdmem* app now goes to work, issuing an ioctl() to the driver to extract memory content from the specified offset, which it then neatly dumps as both hex and ASCII:
 
     # ../app_rwmem/rdmem -o 0 256
@@ -79,7 +80,3 @@ The driver has loaded successfully, ioremap'ping the specified h/w memory region
     #
 Done.
 > Written with [StackEdit](https://stackedit.io/).
-
-
-
-
