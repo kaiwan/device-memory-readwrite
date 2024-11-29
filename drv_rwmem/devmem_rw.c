@@ -173,7 +173,7 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 		memcpy(kbuf, tmpbuf, pst_rdm->len);
 
 #ifdef DEBUG
-//		print_hex_dump_bytes("kbuf: ", DUMP_PREFIX_OFFSET, kbuf, pst_rdm->len);
+		print_hex_dump_bytes("kbuf: ", DUMP_PREFIX_OFFSET, kbuf, pst_rdm->len);
 #endif
 
 	/* ARM* requires :
@@ -301,6 +301,11 @@ static int __init rwmem_init_module(void)
 	struct device *dev;
 	struct resource *iores = NULL;
 
+#ifdef __BIG_ENDIAN
+	pr_info("big-endian arch\n");
+#else
+	pr_info("little-endian arch\n");
+#endif
 	//--- misc device registration
 	ret = misc_register(&devmem_miscdev);
 	if (ret != 0) {
@@ -334,7 +339,7 @@ static int __init rwmem_init_module(void)
 		return -EBUSY;
 	}
 
-	// TODO - use devm_ioremp() etc
+	// TODO - use devm_ioremap() etc
 	iobase = ioremap(iobase_start, iobase_len);
 	if (!iobase) {
 		dev_err(dev, "ioremap failed, aborting...\n");

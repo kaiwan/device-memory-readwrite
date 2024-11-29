@@ -26,13 +26,13 @@ CMD=$(printf "sudo insmod ${KDRV_LOC}/${KDRV}.ko iobase_start=0x%x iobase_len=%d
 echo ${CMD}
 
 #sudo sh -c "${cmd}" || exit 1
-eval "${cmd}" || {
+eval "${CMD}" || {
   sudo dmesg ; exit 1
 }
 lsmod|grep ${KDRV}
 sudo dmesg
 sudo grep "${IOMEM_NAME}" /proc/iomem
-sudo ./rdmem -o 0 ${LEN} || {
+sudo ../app_rwmem/rdmem -o 0 ${LEN} || {
   sudo rmmod ${KDRV} 2>/dev/null
   echo "*fail*" ; exit 1
 }

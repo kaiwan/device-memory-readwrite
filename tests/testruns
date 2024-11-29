@@ -160,7 +160,7 @@ sudo rmmod ${KDRV}
 ASLR=$(cat /proc/sys/kernel/randomize_va_space)
 sudo rmmod ${KDRV} 2>/dev/null
 
-x64_pio_test
+#x64_pio_test
 ##userspace_ram_rdwr_test
 kernelspace_ram_rd_test
 kernel_read_test

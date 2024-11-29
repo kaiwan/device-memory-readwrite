@@ -197,6 +197,10 @@ static int ioport_read(int argc, char **argv)
 }
 #endif
 
+//uint32_t reverse_endian_32(uint32_t number) {
+unsigned long reverse_endian_32(unsigned long number) {
+  return (((number & 0xFF) << 24) | ((number & 0xFF00) << 8) | ((number & 0xFF0000) >> 8) | (number >> 24));
+}
 
 int main(int argc, char **argv)
 {
@@ -342,10 +346,35 @@ int main(int argc, char **argv)
 		close(fd);
 		exit(EXIT_FAILURE);
 	}
+	
+	/* Endian-ness: perform byte swapping as required */
+	{
+	unsigned int i;
+	for (i=0; i<st_rdm.len/4; i++) {
+		unsigned char tmp[2];
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+		MSG("little endian\n");
+		/*
+		printf("buf[%d]=0x%x\n", i, st_rdm.buf[i]);
+		printf("buf[%d]=0x%x\n", i+1, st_rdm.buf[i+1]);
+		printf("buf[%d]=0x%x\n", i+2, st_rdm.buf[i+2]);
+		printf("buf[%d]=0x%x\n", i+3, st_rdm.buf[i+3]); */
+                tmp[0] = st_rdm.buf[(i * 4) + 0];
+                tmp[1] = st_rdm.buf[(i * 4) + 1];
+                st_rdm.buf[(i * 4) + 0] = st_rdm.buf[(i*4)+3];
+                st_rdm.buf[(i * 4) + 1] = st_rdm.buf[(i*4)+2];
+                st_rdm.buf[(i * 4) + 2] = tmp[1]; //st_rdm.buf[(i*4)+1];
+                st_rdm.buf[(i * 4) + 3] = tmp[0]; //st_rdm.buf[(i*4)+0];
+#else
+		MSG("big endian\n");
+#endif
+	}
+	}
 
-	//void hex_dump(unsigned char *data, unsigned int size, char *caption, int verbose)
+	// void hex_dump(unsigned char *data, unsigned int size, char *caption, int verbose)
 	hex_dump(st_rdm.buf, st_rdm.len, "MemDump", 0);
 	free(st_rdm.buf);
 	close(fd);
+
 	return 0;
 }
