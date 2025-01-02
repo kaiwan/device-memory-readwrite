@@ -4,6 +4,11 @@
 # The values in this test script are particular to the hardware;
 # the Raspberry Pi 4B
 ############
+die()
+{
+echo >&2 "FATAL: $*" ; exit 1
+}
+
 KDRV_LOC=../drv_rwmem
 KDRV=devmem_rw
 BASE_ADDR=0xfe00b880   # one of the R Pi 4B mailbox registers, as an example region to view...
