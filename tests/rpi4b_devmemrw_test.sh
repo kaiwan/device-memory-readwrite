@@ -13,6 +13,13 @@ LEN=64                 # bytes
 IOMEM_NAME=my_mailbox  # in /proc/iomem
 FORCE_REL=1
 
+APP_LOC=../app_rwmem
+RDMEM=${APP_LOC}/rdmem
+WRMEM=${APP_LOC}/wrmem
+[[ ! -f ${KDRV_LOC}/${KDRV}.ko ]] && die "First build the ${KDRV_LOC}/${KDRV}.ko module"
+[[ ! -f ${RDMEM} ]] && die "First build the ${RDMEM} app"
+[[ ! -f ${WRMEM} ]] && die "First build the ${WRMEM} app"
+
 BASE_ADDR2=${BASE_ADDR:2}
 sudo grep "${BASE_ADDR2}" /proc/iomem || {
   echo "MMIO region from ${BASE_ADDR} not found? aborting..." ; exit 1
