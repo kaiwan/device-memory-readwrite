@@ -15,6 +15,8 @@ KDRV=devmem_rw
 failit()
 {
 	echo "*FAIL*"
+	echo "Restore usermode ASLR setting"
+	sudo sh -c "echo ${ASLR} > /proc/sys/kernel/randomize_va_space"
 	exit 1
 }
 
@@ -60,15 +62,16 @@ sudo sh -c "echo 0 > /proc/sys/kernel/randomize_va_space"
 
 userspace_ram_rdwr_test()
 {
-local WRMEM_DBG=./wrmem_dbg
+local WRMEM_DBG=../app_rwmem/wrmem_dbg
 local BYTES2WRITE=0x112233ee
-local EXPECT2READ="ee 33 22 11"
+local EXPECT2READ="ee 33 22 11"  # on little-endian systems
 
 echo
 echo "================= Userspace RAM memory rd/wr Test ========================="
 prep_devmem_drv
 
-uva=$(sudo ${WRMEM_DBG} 2>/dev/null |grep "gbuf @" |awk '{print $3}')
+sudo ${WRMEM_DBG} > /tmp/.t1
+uva=$(grep "gbuf @" /tmp/.t1 |awk '{print $3}')
 [[ -z "${uva}" ]] && {
 	echo "${WRMEM_DBG} failed to obtain sample debug UVA? aborting..."
 	failit
@@ -77,12 +80,12 @@ echo "uva=${uva}"
 
 echo "sudo ${WRMEM_DBG} ${uva} ${BYTES2WRITE} > tmp 2>/dev/null"
 sudo ${WRMEM_DBG} ${uva} ${BYTES2WRITE} > tmp 2>/dev/null || failit
-grep "^00000000 ${EXPECT2READ}" tmp >/dev/null 2>&1
+grep "^00000000 *${EXPECT2READ}" tmp >/dev/null 2>&1
 [[ $? -ne 0 ]] && failit || echo "${PASS_STR}"
 rm -f tmp
 
-echo "Restore usermode ASLR setting"
-sudo sh -c "echo ${ASLR} > /proc/sys/kernel/randomize_va_space"
+#echo "Restore usermode ASLR setting"
+#sudo sh -c "echo ${ASLR} > /proc/sys/kernel/randomize_va_space"
 }
 
 PROCMAP=procmap
@@ -98,9 +101,10 @@ hash ${PROCMAP} 2>/dev/null || {
 echo "================= Kernel-space RAM memory read Test ========================="
 
 echo "Running ${PROCMAP} now to obtain the kernel's PAGE_OFFSET value:
-${PROCMAP} --pid=1 --only-kernel --verbose |grep "^PAGE_OFFSET" |awk '{print $3}'"
+${PROCMAP} --pid=1 --only-kernel --verbose |grep "^PAGE_OFFSET" |awk '{print \$3}'"
 PGOFF=$(${PROCMAP} --pid=1 --only-kernel --verbose |grep "^PAGE_OFFSET" |awk '{print $3}') || failit
 echo "PAGE_OFFSET via ${PROCMAP}: ${PGOFF}"
+sudo rmmod ${PROCMAP}
 prep_devmem_drv
 
 local RAMFILE=/tmp/ram_first16M.txt
@@ -113,7 +117,7 @@ sudo ${APP_LOC}/rdmem ${PGOFF} ${SIZE2READ} > ${RAMFILE} || failit && echo "${PA
 echo "
 To see possibly interesting portions of the first $((${SIZE2READ}/(1024*1024))) MB of RAM, run this cmd:
 egrep -v \
-\"00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff\" \
+\"00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00 | ff ff ff ff ff ff ff ff  ff ff ff ff ff ff ff ff\" \
 ${RAMFILE}"
 #rm -f ${RAMFILE}
 }
@@ -161,9 +165,9 @@ ASLR=$(cat /proc/sys/kernel/randomize_va_space)
 sudo rmmod ${KDRV} 2>/dev/null
 
 #x64_pio_test
-##userspace_ram_rdwr_test
-kernelspace_ram_rd_test
-kernel_read_test
+userspace_ram_rdwr_test
+#kernelspace_ram_rd_test
+#kernel_read_test
 
 echo "Restore usermode ASLR setting"
 sudo sh -c "echo ${ASLR} > /proc/sys/kernel/randomize_va_space"
