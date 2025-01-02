@@ -4,9 +4,6 @@
  * Project home: 
  * http://github.com/kaiwan/device-memory-readwrite/
  *
- * Pl see detailed usage doc here:
- * https://github.com/kaiwan/device-memory-readwrite/blob/master/Devmem_HOWTO.pdf
- *
  * For rdmem/wrmem utility.
  */
 #ifndef _RDWR_MEM_COMMON
@@ -19,14 +16,19 @@
 #define APPNAME		"rdm_wrm_app"
 #define	DRVNAME		"devmem_rw"
 
-#ifndef __KERNEL__
-#ifdef DEBUG_PRINT
- #define MSG(string, args...) \
-	fprintf(stderr, "[%s]%s():%d: " string,		\
+#ifdef DEBUG
+#ifdef __KERNEL__
+	// no MSG() macro, simply use pr_debug() / dev_dbg()
+	#define QP pr_debug("%s:%s():%d\n", __FILE__, __func__, __LINE__);
+#else   // userspace
+	#define MSG(string, args...) \
+		printf("[%s]%s():%d: " string,		\
 		APPNAME, __func__, __LINE__, ##args)
-#else
- #define MSG(string, args...)
+	#define QP printf("%s:%s():%d\n", __FILE__, __func__, __LINE__);
 #endif
+#else   // debug Off
+	#define MSG(string, args...)
+	#define QP
 #endif
 
 #define DEVICE_FILE		"/dev/devmem_miscdrv"
@@ -313,14 +315,101 @@ unsigned int roundup_powerof2(unsigned int v)
 	return v;
 }
 
+//--- Src: ChatGPT 4 !
+// 32-bit byte-swap
+unsigned long byte_swap32(unsigned long value) {
+     unsigned int swapped = ((value & 0xFF000000) >> 24) |
+                           ((value & 0x00FF0000) >> 8)  |
+                           ((value & 0x0000FF00) << 8)  |
+                           ((value & 0x000000FF) << 24);
+    return swapped;
+}
+// 64-bit byte-swap
+unsigned long byte_swap64(unsigned long value) {
+    unsigned long swapped = ((value & 0xFF00000000000000) >> 56) |
+                            ((value & 0x00FF000000000000) >> 40) |
+                            ((value & 0x0000FF0000000000) >> 24) |
+                            ((value & 0x000000FF00000000) >> 8)  |
+                            ((value & 0x00000000FF000000) << 8)  |
+                            ((value & 0x0000000000FF0000) << 24) |
+                            ((value & 0x000000000000FF00) << 40) |
+                            ((value & 0x00000000000000FF) << 56);
+    return swapped;
+}
+
 #include <string.h>
+#include <stdio.h>
+#include <ctype.h>
+
+void hex_dump(const void *data, size_t size, const char *caption, int verbose) {
+    if (caption) {
+        printf("%s\n", caption);
+    }
+    
+    const unsigned char *byte_data = (const unsigned char *)data;
+    size_t i, j;
+
+    // Process data in 16-byte chunks
+    for (i = 0; i < size; i += 16) {
+        // Print offset
+        printf("%08zx  ", i);
+
+        // Print hex representation
+        for (j = 0; j < 16; ++j) {
+            if (i + j < size) {
+                printf("%02x ", byte_data[i + j]);
+            } else {
+                printf("   "); // Padding for incomplete lines
+            }
+
+            // Add extra space after 8 bytes for readability
+            if (j == 7) {
+                printf(" ");
+            }
+        }
+
+        // Print ASCII representation
+        printf(" |");
+        for (j = 0; j < 16; ++j) {
+            if (i + j < size) {
+                unsigned char c = byte_data[i + j];
+                printf("%c", isprint(c) ? c : '.'); // Printable or '.'
+            } else {
+                printf(" "); // Padding for incomplete lines
+            }
+        }
+        printf("|\n");
+    }
+
+    // Verbose output if requested
+    if (verbose) {
+        printf("\n[Verbose Output]\n");
+        printf("Data size: %zu bytes\n", size);
+        printf("Endianness: %s\n", (*(unsigned short *)"\x01\x00" == 1) ? "Little-endian" : "Big-endian");
+    }
+}
+
+int testdump() {
+    // Example data for the hex dump
+    unsigned char data[] = {
+        0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x2C, 0x20, 0x57,
+        0x6F, 0x72, 0x6C, 0x64, 0x21, 0x0A, 0x00, 0x01,
+        0xDE, 0xAD, 0xBE, 0xEF
+    };
+
+    hex_dump(data, sizeof(data), "Example Hex Dump", 1);
+
+    return 0;
+}
+//---
+
 /*--------------- Sourced from:
 http://www.alexonlinux.com/hex-dump-functions
 All rights rest with original author(s).----------------------
 
 Added a 'verbose' parameter..(kaiwan).
 */
-void hex_dump(unsigned char *data, unsigned int size, char *caption, int verbose)
+void hex_dump_OLD(unsigned char *data, unsigned int size, char *caption, int verbose)
 {
 	unsigned int i;		// index in data...
 	int j;			// index in line...
