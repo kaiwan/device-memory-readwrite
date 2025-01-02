@@ -289,15 +289,18 @@ int main(int argc, char **argv)
 		if (is_user_address(st_rdm.addr)) {
 			if (uaddr_valid(st_rdm.addr) == -1) {
 				fprintf(stderr,
-			"%s: the (usermode virtual) address passed (%p) seems to be invalid. Aborting...\n"
-			"%s\n",
-				argv[0], (void *)st_rdm.addr, rdwrmem_tips_msg);
+			"%s: the (usermode virtual) address passed (%p) seems to be an invalid user va.\
+			\nASSUMING it's a valid kernel va and moving forward...\n\
+			NOTE: if the addr is invalid (or freed up, etc) this WILL cause bugs (possibly an Oops and/or panic!)\n",
+		//	"%s\n",
+				argv[0], (void *)st_rdm.addr); /*, rdwrmem_tips_msg);
 				close(fd);
 				exit(EXIT_FAILURE);
+				*/
 			}
 			MSG("addr is a valid user-mode addr\n");
 		} else
-			MSG("addr is Not a user-mode addr\n");
+			MSG("addr is Not a user-mode addr, ASSUMING its a valid kernel va\n");
 	}
 	MSG("2 offset? %s; st_rdm.addr=%p\n",
 	    (st_rdm.flag == USE_IOBASE ? "yes" : "no"), (void *)st_rdm.addr);
@@ -340,13 +343,16 @@ int main(int argc, char **argv)
 	    (void *)st_rdm.addr, st_rdm.buf,
 	    (unsigned int)st_rdm.len, (unsigned int)st_rdm.len,
 	    st_rdm.flag);
+	QP;
 	if (ioctl(fd, IOCTL_RWMEMDRV_IOCGMEM, &st_rdm) == -1) {
 		perror("ioctl");
 		free(st_rdm.buf);
 		close(fd);
 		exit(EXIT_FAILURE);
 	}
+	QP;
 	
+#if 0
 	/* Endian-ness: perform byte swapping as required */
 	{
 	unsigned int i;
@@ -354,27 +360,32 @@ int main(int argc, char **argv)
 		unsigned char tmp[2];
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 		MSG("little endian\n");
-		/*
+#if 0
 		printf("buf[%d]=0x%x\n", i, st_rdm.buf[i]);
 		printf("buf[%d]=0x%x\n", i+1, st_rdm.buf[i+1]);
 		printf("buf[%d]=0x%x\n", i+2, st_rdm.buf[i+2]);
-		printf("buf[%d]=0x%x\n", i+3, st_rdm.buf[i+3]); */
+		printf("buf[%d]=0x%x\n", i+3, st_rdm.buf[i+3]);
+#endif
                 tmp[0] = st_rdm.buf[(i * 4) + 0];
                 tmp[1] = st_rdm.buf[(i * 4) + 1];
                 st_rdm.buf[(i * 4) + 0] = st_rdm.buf[(i*4)+3];
                 st_rdm.buf[(i * 4) + 1] = st_rdm.buf[(i*4)+2];
-                st_rdm.buf[(i * 4) + 2] = tmp[1]; //st_rdm.buf[(i*4)+1];
-                st_rdm.buf[(i * 4) + 3] = tmp[0]; //st_rdm.buf[(i*4)+0];
+                st_rdm.buf[(i * 4) + 2] = tmp[1];
+                st_rdm.buf[(i * 4) + 3] = tmp[0];
 #else
 		MSG("big endian\n");
 #endif
 	}
 	}
+#endif
 
 	// void hex_dump(unsigned char *data, unsigned int size, char *caption, int verbose)
 	hex_dump(st_rdm.buf, st_rdm.len, "MemDump", 0);
 	free(st_rdm.buf);
 	close(fd);
 
-	return 0;
+	/* Funny, when built in 'debug' mode, we add the -fsanitize=address cflag;
+	 * this seems to cause the exit() to take a while...
+	 */
+	exit(0);
 }
