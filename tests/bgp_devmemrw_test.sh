@@ -1,5 +1,5 @@
 #!/bin/bash
-# FOr the TI BGP (BeaglePlay) AM625 SoC platform: devmem_rw load helper script
+# For the TI BGP (BeaglePlay) AM625 SoC platform: devmem_rw load helper script
 ### NOTE ###
 # The values in this test script are particular to the hardware;
 # the TI BGP AM625 SoC
@@ -61,6 +61,6 @@ sudo rmmod ${KDRV} 2>/dev/null
 INTF=eth0
 echo "
 Read successful; expected data (the ${INTF} network interface's MAC address):
-$(ip a|grep -w -A1 ${INTF}|awk '{print $2}'|tail -n1)
+$(ip a|grep -w -A1 ${INTF}|head -n2|awk '{print $2}'|tail -n1)
 (Take the endian-ness - little-endian - into account and it works)"
 exit 0
