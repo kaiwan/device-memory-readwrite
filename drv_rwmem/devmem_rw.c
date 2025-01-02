@@ -44,7 +44,7 @@
 #include <asm/uaccess.h>
 #endif
 
-MODULE_AUTHOR("(c) Kaiwan N Billimoria, kaiwanTECH");
+MODULE_AUTHOR("Kaiwan N Billimoria, kaiwanTECH");
 MODULE_DESCRIPTION("Char driver to implement read/write on IO memory or RAM");
 MODULE_LICENSE("Dual MIT/GPL");
 
@@ -91,7 +91,7 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 	PST_RDM pst_rdm = NULL;
 	PST_WRM pst_wrm = NULL;
 	unsigned char *kbuf = NULL, *tmpbuf = NULL;
-	unsigned long flags;
+	//unsigned long flags;
 
 	if (mutex_lock_interruptible(&mtx)) {
 		pr_info("pid %d: mtx lock interrupted!\n", current->pid);
@@ -119,7 +119,6 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 			retval = -ENOMEM;
 			goto rdm_out_unlock;
 		}
-
 		if (copy_from_user(pst_rdm, (PST_RDM)arg, sizeof(ST_RDM))) {
 			pr_warn("copy_from_user failed\n");
 			retval = -EFAULT;
@@ -146,18 +145,11 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 		}
 		memset(tmpbuf, POISONVAL, pst_rdm->len);
 
+#if 0
 		//---------Critical section BEGIN: save & turn off interrupts and preemption
+		mutex_unlock(&mtx);
 		local_irq_save(flags);
-
-#if 0		//------------- ioread32_rep does NOT seem to work! ioread32 does...(on
-		//ARM BB). WHY ???
-		if (USE_IOBASE == pst_rdm->flag)
-			ioread32_rep(tmpbuf, (void *)(iobase + pst_rdm->addr), pst_rdm->len);
-		else
-			ioread32_rep(kbuf, (void *)pst_rdm->addr,
-				     pst_rdm->len / sizeof(void *));
-		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, tmpbuf, pst_rdm->len);
-#else
+#endif
 		if (pst_rdm->flag == USE_IOBASE) {	// offset relative to iobase address passed
 			pr_debug
 			    ("dest:tmpbuf=%px src:(iobase+pst_rdm->addr)=%px pst_rdm->len=%u\n",
@@ -165,16 +157,20 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 			memcpy_fromio(tmpbuf, (iobase + pst_rdm->addr), pst_rdm->len);
 		} else	// absolute (virtual) address passed
 			memcpy_fromio(tmpbuf, (void *)pst_rdm->addr, pst_rdm->len);
-		// print_hex_dump_bytes ("", DUMP_PREFIX_OFFSET, tmpbuf, pst_rdm->len);
-#endif
+
+#if 0
 		local_irq_restore(flags);
 		//---------Critical section END: restored interrupt + preemption state
-
+		if (mutex_lock_interruptible(&mtx)) {
+			pr_info("pid %d: mtx lock interrupted!\n", current->pid);
+			return -ERESTARTSYS;
+		}
+#endif
 		memcpy(kbuf, tmpbuf, pst_rdm->len);
 
-#ifdef DEBUG
+/* #ifdef DEBUG
 		print_hex_dump_bytes("kbuf: ", DUMP_PREFIX_OFFSET, kbuf, pst_rdm->len);
-#endif
+#endif */
 
 	/* ARM* requires :
 	 * - A memory write barrier before the first write to a peripheral
@@ -221,13 +217,13 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 			 pst_wrm->val);
 
 		//---------Critical section BEGIN: save & turn off interrupts + preemption
-		local_irq_save(flags);
+		//local_irq_save(flags);
 		if (pst_wrm->flag == USE_IOBASE)
 			iowrite32((u32) pst_wrm->val, pst_wrm->addr + iobase);
 		else
 			iowrite32((u32) pst_wrm->val, (void __iomem *)pst_wrm->addr);
 		wmb(); // (same as mb(); comment above
-		local_irq_restore(flags);
+		//local_irq_restore(flags);
 		//---------Critical section END: restored interrupt + preemption state
 
 		retval = sizeof(u32);
@@ -287,11 +283,12 @@ static const struct file_operations devmem_misc_fops = {
 
 static struct miscdevice devmem_miscdev = {
 	.minor = MISC_DYNAMIC_MINOR,	/* kernel dynamically assigns a free minor# */
-	.name = "devmem_miscdrv",	/* when misc_register() is invoked, the kernel
-				 * will auto-create device file as /dev/devmem_miscdrv ;
-				 * also populated within /sys/class/misc/ and /sys/devices/virtual/misc/ */
-	.mode = 0644,			/* ... dev node perms set as specified here */
-	.fops = &devmem_misc_fops,	/* connect to this driver's 'functionality' */
+	.name = "devmem_miscdrv",/* when misc_register() is invoked, the kernel
+				  * will auto-create device file as /dev/devmem_miscdrv ;
+				  * also populated within /sys/class/misc/ and /sys/devices/virtual/misc/
+				  */
+	.mode = 0644,		  /* ... dev node perms set as specified here */
+	.fops = &devmem_misc_fops,/* connect to this driver's 'functionality' */
 };
 
 static int __init rwmem_init_module(void)
