@@ -129,10 +129,15 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 #ifdef DEBUG
+	/* Endian-ness: perform byte swapping as required */
+	//testdump();
 	//void hex_dump(char *data, unsigned int size, char *caption, int verbose)
-	hex_dump((unsigned char *)st_wrm.addr, 4, "Write Test MemDump", 1);
+	hex_dump((unsigned char *)st_wrm.addr, 4, "Write Test MemDump", 0);
 #endif
 
 	close(fd);
+	/* Funny, when built in 'debug' mode, we add the -fsanitize=address cflag;
+	 * this seems to cause the exit() to take a while...
+	 */
 	exit(EXIT_SUCCESS);
 }
