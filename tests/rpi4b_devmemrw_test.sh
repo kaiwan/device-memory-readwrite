@@ -9,7 +9,6 @@ die()
 echo >&2 "FATAL: $*" ; exit 1
 }
 
-hash bc || die "Please install the bc(1) util"
 KDRV_LOC=../drv_rwmem
 KDRV=devmem_rw
 APP_LOC=../app_rwmem
