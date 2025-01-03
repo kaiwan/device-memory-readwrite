@@ -4,10 +4,21 @@
 # The values in this test script are particular to the hardware;
 # the TI BBB
 ############
-APP_LOC=../app_rwmem
-RDMEM=rdmem
+
+die()
+{
+echo >&2 "FATAL: $*" ; exit 1
+}
+
 KDRV_LOC=../drv_rwmem
 KDRV=devmem_rw
+APP_LOC=../app_rwmem
+RDMEM=${APP_LOC}/rdmem
+WRMEM=${APP_LOC}/wrmem
+[[ ! -f ${KDRV_LOC}/${KDRV}.ko ]] && die "First build the ${KDRV_LOC}/${KDRV}.ko module"
+[[ ! -f ${RDMEM} ]] && die "First build the ${RDMEM} app"
+#[[ ! -f ${WRMEM} ]] && die "First build the ${WRMEM} app"
+
 #-----------------------------------------------------------------------------
 BASE_ADDR=0x44E10600   # the TI BBB Device_ID register !
 # Details:
@@ -43,6 +54,7 @@ FORCE_REL=0
 sudo rmmod ${KDRV} 2>/dev/null
 sudo dmesg -C
 
+echo "Having devmem_rw hook into the TI BBB Device_ID register at ${BASE_ADDR} now..."
 BUSADDR=$((${BASE_ADDR}+${OFFSET}))
 CMD=$(printf "sudo insmod ${KDRV_LOC}/${KDRV}.ko iobase_start=0x%x iobase_len=%d reg_name=%s force_rel=%d\n" ${BUSADDR} ${LEN} ${IOMEM_NAME} ${FORCE_REL})
 echo ${CMD}
@@ -54,13 +66,14 @@ eval "${CMD}" || {
 lsmod|grep ${KDRV}
 sudo dmesg
 sudo grep "${IOMEM_NAME}" /proc/iomem
-sudo ${APP_LOC}/${RDMEM} -o 0 ${LEN} || {
+sudo ${RDMEM} -o 0 ${LEN} || {
   sudo rmmod ${KDRV} 2>/dev/null
   echo "*fail*" ; exit 1
 }
 sudo rmmod ${KDRV} 2>/dev/null
 
-echo "Read successful; expected data:
+echo "
+Read successful; expected data (reversed on little-endian of course):
 2b 94 40 2e
 
 Interpret it as shown:
