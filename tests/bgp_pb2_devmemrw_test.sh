@@ -1,5 +1,8 @@
 #!/bin/bash
-# For the TI BGP (BeaglePlay) AM625 SoC platform: devmem_rw load helper script
+# devmem_rw load helper script for both the
+#  TI BGP (BeaglePlay) AM625 SoC platform, and the
+#  TI PocketBeagle 2 AM62X SoC platform
+
 ### NOTE ###
 # The values in this test script are particular to the hardware;
 # the TI BGP AM625 SoC
@@ -12,6 +15,7 @@ KDRV=devmem_rw
 # Details:
 # Ref: TI AM62x TRM (spruiv7b)
 #  https://www.ti.com/lit/ug/spruiv7a/spruiv7a.pdf
+#--- The network interface MAC address registers can be seen here:
 # Ref Summary Table on pg 5433 : 14.2.1.1.3 WKUP_CTRL_MMR Registers
 #  Table 14-5430. cfg0, WKUP_CTRL_MMR0_CFG0 Registers, Base Address=4300 0000H, Length=131072
 # 
@@ -25,7 +29,7 @@ KDRV=devmem_rw
 BASE_ADDR=0x43000000
 OFFSET=0x200                # offset from base address to start mapping
 LEN=8                       # bytes
-IOMEM_NAME=bgp_mac_id0_id1  # in /proc/iomem
+IOMEM_NAME=bgp_pb2_mac_id0_id1  # in /proc/iomem
 FORCE_REL=0
 
 sudo rmmod ${KDRV} 2>/dev/null
@@ -44,7 +48,7 @@ sudo dmesg
 sudo grep "${IOMEM_NAME}" /proc/iomem
 
 echo "
-Reading the BGP's two MAC ID registers here:
+Reading the BGP's/PocketBeagle 2's two MAC ID registers here:
 Offset Length         Register Name         WKUP_CTRL_MMR0 Physical Address
 200h       32    WKUP_CTRL_MMR_MAC_ID0                  4300 0200h
     15-0 :   32 lsbs of MAC address
