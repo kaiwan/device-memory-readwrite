@@ -5,6 +5,15 @@ trap 'echo " Aborted by user..." ; exit 0' INT QUIT
 DELAY=1  # seconds
 APP_LOC=../app_rwmem
 
+TMP=/tmp/.uname_m
+uname -m > ${TMP}
+grep "x86" ${TMP} || {
+  echo "Fatal: must run this test on an x86[_64] only, aborting..."
+  rm -f ${TMP}
+  exit 1
+}
+rm -f ${TMP}
+
 [[ ! -f ${APP_LOC}/rdmem ]] && {
   echo "First build the ${APP_LOC}/rdmem app and then retry" ; exit 1
 }
