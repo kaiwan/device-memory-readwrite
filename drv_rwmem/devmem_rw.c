@@ -246,7 +246,9 @@ static int rwmem_ioctl(struct inode *ino, struct file *filp, unsigned int cmd,
 
 /* Minor-specific open routines */
 static const struct file_operations rwmem_fops = {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 0, 0) // commit 868941b
 	.llseek = no_llseek,
+#endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 36)
 	.unlocked_ioctl = rwmem_ioctl,
 #else
@@ -278,7 +280,9 @@ static const struct file_operations devmem_misc_fops = {
 #else
 	.ioctl = rwmem_ioctl,
 #endif
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 0, 0) // commit 868941b
 	.llseek = no_llseek,
+#endif
 };
 
 static struct miscdevice devmem_miscdev = {
