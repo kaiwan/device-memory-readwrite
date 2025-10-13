@@ -58,7 +58,10 @@ sudo ${APP_LOC}/${RDMEM} -o 0 ${LEN} || {
 }
 sudo rmmod ${KDRV} 2>/dev/null
 
-INTF=eth0
+# Take board into account
+INTF=eth0  # for the BGP board
+grep "pocketbeagle" /proc/device-tree/compatible >/dev/null && INTF=usb0
+
 echo "
 Read successful; expected data (the ${INTF} network interface's MAC address):
 $(ip a|grep -w -A1 ${INTF}|head -n2|awk '{print $2}'|tail -n1)
